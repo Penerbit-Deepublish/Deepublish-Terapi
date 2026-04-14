@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["hris"]
+}
+
+model Terapi {
+  id            String   @id @default(uuid()) @db.Uuid
+  namaLengkap   String   @map("nama_lengkap") @db.Text
+  nomorHp       String   @map("nomor_hp") @db.Text
+  usia          Int?
+  alamat        String?  @db.Text
+  jenisKelamin  String   @map("jenis_kelamin") @db.Text
+  lokasiTerapi  String   @map("lokasi_terapi") @db.Text
+  tanggalTerapi DateTime @map("tanggal_terapi") @db.Date
+  keluhan       String[] @db.Text
+  catatanTambahan String? @map("catatan_tambahan") @db.Text
+  paket         String   @db.Text
+  jamSesi       String   @map("jam_sesi") @db.Text
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([tanggalTerapi])
+  @@index([tanggalTerapi, jamSesi])
+  @@map("terapi")
+  @@schema("hris")
+}
+
+model AdminUser {
+  id           String @id @default(uuid()) @db.Uuid
+  email        String @unique @db.Text
+  passwordHash String @map("password_hash") @db.Text
+
+  @@map("admin_users")
+  @@schema("hris")
+}
+
+model Kuota {
+  id            String   @id @default(uuid()) @db.Uuid
+  tanggal       DateTime @unique @db.Date
+  kuotaMax      Int      @map("kuota_max")
+  kuotaTerpakai Int      @map("kuota_terpakai") @default(0)
+
+  @@index([tanggal])
+  @@map("kuota")
+  @@schema("hris")
+}
+
+model Sesi {
+  id       String @id @default(uuid()) @db.Uuid
+  jam      String @unique @db.Text
+  kapasitas Int
+  terisi   Int    @default(0)
+
+  @@index([jam])
+  @@map("sesi")
+  @@schema("hris")
+}
