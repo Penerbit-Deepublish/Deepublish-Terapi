@@ -29,22 +29,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="min-h-screen bg-muted/10 flex flex-col md:flex-row">
+    <div className="min-h-screen lg:h-screen bg-muted/10 flex flex-col lg:flex-row">
       {/* Mobile Header */}
-      <div className="md:hidden flex items-center justify-between p-4 bg-card border-b border-border sticky top-0 z-50">
+      <div className="lg:hidden flex items-center justify-between p-4 bg-card border-b border-border sticky top-0 z-50">
         <h1 className="font-bold text-lg text-primary">Admin Panel</h1>
         <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
           <Menu className="h-6 w-6" />
         </Button>
       </div>
 
+      {/* Mobile/Tablet Backdrop */}
+      {isMobileMenuOpen && (
+        <button
+          type="button"
+          aria-label="Tutup menu"
+          className="fixed inset-0 z-40 bg-black/35 lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside className={cn(
-        "w-full md:w-64 bg-card border-r border-border flex-col justify-between hidden md:flex",
-        isMobileMenuOpen ? "flex" : ""
+        "fixed top-0 left-0 z-50 h-screen w-[82%] max-w-xs bg-card border-r border-border flex flex-col justify-between transform transition-transform duration-300 ease-out lg:relative lg:w-64 lg:max-w-none lg:translate-x-0 lg:h-screen lg:sticky lg:top-0 lg:shrink-0",
+        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="p-6">
-          <h2 className="text-xl font-bold text-primary mb-8 hidden md:block">Terapi Admin</h2>
+          <h2 className="text-xl font-bold text-primary mb-8">Terapi Admin</h2>
           <nav className="space-y-2">
             {ADMIN_LINKS.map((link) => {
               const Icon = link.icon;
