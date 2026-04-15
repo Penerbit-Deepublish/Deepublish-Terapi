@@ -44,6 +44,15 @@ const KELUHAN_DALAM_OPTIONS = [
   OTHER_OPTION,
 ] as const;
 
+const JAM_KEHADIRAN_OPTIONS = [
+  "09:00 - 10:00",
+  "10:00 - 11:00",
+  "11:00 - 12:00",
+  "13:00 - 14:00",
+  "14:00 - 15:00",
+  "15:00 - 16:00",
+] as const;
+
 type ApiSesiItem = {
   id: string;
   jam: string;
@@ -51,6 +60,14 @@ type ApiSesiItem = {
   terisi: number;
   tersedia: boolean;
 };
+
+function normalizeJam(value: string) {
+  return value.replaceAll(".", ":").replace(/\s*-\s*/g, " - ").trim();
+}
+
+function displayJam(value: string) {
+  return normalizeJam(value).replaceAll(":", ".");
+}
 
 function toggleValue(list: string[], value: string, checked: boolean) {
   const next = new Set(list);
@@ -335,7 +352,9 @@ export function BookingForm() {
                       className={cn(
                         "relative flex flex-col items-start p-6 rounded-2xl border-2 transition-all duration-300 text-left overflow-hidden",
                         focusStrokeClass,
-                        isSelected ? "border-secondary" : "border-transparent bg-muted/50 hover:bg-muted",
+                        isSelected
+                          ? "border-secondary bg-secondary text-secondary-foreground"
+                          : "border-transparent bg-muted/50 hover:bg-muted",
                       )}
                     >
                       <span
@@ -346,7 +365,14 @@ export function BookingForm() {
                       >
                         {paket.title}
                       </span>
-                      <span className="relative z-10 text-sm text-muted-foreground mt-1">{paket.desc}</span>
+                      <span
+                        className={cn(
+                          "relative z-10 text-sm mt-1",
+                          isSelected ? "text-secondary-foreground/90" : "text-muted-foreground",
+                        )}
+                      >
+                        {paket.desc}
+                      </span>
                     </button>
                   );
                 })}
@@ -460,37 +486,45 @@ export function BookingForm() {
                   <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
                     Memuat pilihan jam...
                   </div>
-                ) : sessions.length > 0 ? (
+                ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {sessions.map((slot) => {
-                      const isSelected = field.value === slot.id;
+                    {(() => {
+                      const sessionByJam = new Map(
+                        sessions.map((item) => [normalizeJam(item.jam), item] as const),
+                      );
+                      return JAM_KEHADIRAN_OPTIONS.map((jam) => {
+                        const slot = sessionByJam.get(normalizeJam(jam));
+                        const available = slot?.tersedia ?? false;
+                        const slotId = slot?.id ?? "";
+                        const isSelected = field.value === slotId;
+                        const statusLabel = slotId ? "Penuh" : "Belum tersedia";
                       return (
                         <button
-                          key={slot.id}
+                          key={jam}
                           type="button"
-                          disabled={!slot.tersedia}
-                          onClick={() => field.onChange(slot.id)}
+                          disabled={!available}
+                          onClick={() => {
+                            if (!slotId) return;
+                            field.onChange(slotId);
+                          }}
                           className={cn(
                             "py-3 px-4 rounded-xl font-medium transition-all duration-300 text-center border-2",
                             focusStrokeClass,
-                            !slot.tersedia
+                            !available
                               ? "opacity-50 cursor-not-allowed bg-muted text-muted-foreground border-transparent"
                               : isSelected
                                 ? "border-[#185cab] bg-[#185cab]/10 text-[#185cab]"
                                 : "border-transparent bg-muted/30 hover:bg-muted text-foreground",
                           )}
                         >
-                          {slot.jam}
-                          {!slot.tersedia && (
-                            <span className="block text-xs mt-1 text-destructive font-semibold">Penuh</span>
+                          {displayJam(jam)}
+                          {!available && (
+                            <span className="block text-xs mt-1 text-destructive font-semibold">{statusLabel}</span>
                           )}
                         </button>
                       );
-                    })}
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-                    Jam kehadiran belum tersedia.
+                      });
+                    })()}
                   </div>
                 )}
 
@@ -526,4 +560,3 @@ export function BookingForm() {
     </div>
   );
 }
-
