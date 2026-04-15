@@ -11,14 +11,15 @@ import { Search, Filter, FileText, Trash2 } from "lucide-react";
 interface PesertaItem {
   id: string;
   nama_lengkap: string;
-  nomor_hp: string;
-  usia: number | null;
-  alamat: string | null;
+  departemen: string | null;
+  status_kepesertaan: string | null;
+  tanggal_lahir: string | null;
   jenis_kelamin: "L" | "P";
-  tanggal_terapi: string;
-  jam_sesi: string;
-  keluhan: string[];
-  catatan_tambahan?: string | null;
+  jam_kehadiran: string;
+  keluhan_luar: string[];
+  keluhan_luar_lainnya?: string | null;
+  keluhan_dalam: string[];
+  keluhan_dalam_lainnya?: string | null;
   paket: string;
 }
 
@@ -90,7 +91,7 @@ export default function RiwayatPeserta() {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Cari nama atau no HP..."
+                placeholder="Cari nama, departemen, atau status..."
                 className="pl-9"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -105,10 +106,9 @@ export default function RiwayatPeserta() {
                   <TableHead>Kode</TableHead>
                   <TableHead>Nama Peserta</TableHead>
                   <TableHead>Profil</TableHead>
-                  <TableHead>No HP</TableHead>
-                  <TableHead>Jadwal</TableHead>
-                  <TableHead>Keluhan</TableHead>
-                  <TableHead>Catatan</TableHead>
+                  <TableHead>Jam Kehadiran</TableHead>
+                  <TableHead>Keluhan Luar</TableHead>
+                  <TableHead>Keluhan Dalam</TableHead>
                   <TableHead>Paket</TableHead>
                   <TableHead>Aksi</TableHead>
                 </TableRow>
@@ -119,24 +119,34 @@ export default function RiwayatPeserta() {
                     <TableCell className="font-medium text-muted-foreground">{item.id.slice(0, 8)}</TableCell>
                     <TableCell className="font-bold">{item.nama_lengkap}</TableCell>
                     <TableCell>
-                      <div className="text-sm">{item.jenis_kelamin === "L" ? "Laki-laki" : "Perempuan"}</div>
-                      <div className="text-sm text-muted-foreground">{item.usia ? `${item.usia} th` : "-"}</div>
-                      <div className="text-xs text-muted-foreground">{item.alamat || "-"}</div>
+                      <div className="text-sm">{item.departemen || "-"}</div>
+                      <div className="text-sm text-muted-foreground">{item.status_kepesertaan || "-"}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {item.jenis_kelamin === "L" ? "Laki-laki" : "Perempuan"} • {item.tanggal_lahir || "-"}
+                      </div>
                     </TableCell>
-                    <TableCell>{item.nomor_hp}</TableCell>
                     <TableCell>
-                      <div className="text-sm">{item.tanggal_terapi}</div>
-                      <div className="text-sm font-semibold text-primary">{item.jam_sesi}</div>
+                      <div className="text-sm font-semibold text-primary">{item.jam_kehadiran}</div>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {item.keluhan.map((k) => (
+                        {item.keluhan_luar.map((k) => (
                           <Badge variant="secondary" key={k} className="text-xs">{k}</Badge>
                         ))}
+                        {item.keluhan_luar_lainnya && (
+                          <Badge variant="secondary" className="text-xs">{`Yang lain: ${item.keluhan_luar_lainnya}`}</Badge>
+                        )}
                       </div>
                     </TableCell>
-                    <TableCell className="max-w-[220px]">
-                      <div className="text-xs text-muted-foreground break-words">{item.catatan_tambahan || "-"}</div>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {item.keluhan_dalam.map((k) => (
+                          <Badge variant="secondary" key={k} className="text-xs">{k}</Badge>
+                        ))}
+                        {item.keluhan_dalam_lainnya && (
+                          <Badge variant="secondary" className="text-xs">{`Yang lain: ${item.keluhan_dalam_lainnya}`}</Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant={item.paket === "LENGKAP" ? "default" : "outline"}>
@@ -151,7 +161,7 @@ export default function RiwayatPeserta() {
                   </TableRow>
                 )) : (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-6 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
                       Tidak ada data ditemukan
                     </TableCell>
                   </TableRow>

@@ -11,7 +11,7 @@ datasource db {
 model Terapi {
   id            String   @id @default(uuid()) @db.Uuid
   namaLengkap   String   @map("nama_lengkap") @db.Text
-  nomorHp       String   @map("nomor_hp") @db.Text
+  nomorHp       String?  @map("nomor_hp") @db.Text
   usia          Int?
   alamat        String?  @db.Text
   jenisKelamin  String   @map("jenis_kelamin") @db.Text
@@ -21,6 +21,13 @@ model Terapi {
   catatanTambahan String? @map("catatan_tambahan") @db.Text
   paket         String   @db.Text
   jamSesi       String   @map("jam_sesi") @db.Text
+  departemen    String?  @db.Text
+  statusKepesertaan String? @map("status_kepesertaan") @db.Text
+  tanggalLahir  DateTime? @map("tanggal_lahir") @db.Date
+  keluhanLuar   String[] @map("keluhan_luar") @db.Text
+  keluhanLuarLainnya String? @map("keluhan_luar_lainnya") @db.Text
+  keluhanDalam  String[] @map("keluhan_dalam") @db.Text
+  keluhanDalamLainnya String? @map("keluhan_dalam_lainnya") @db.Text
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
 
   @@index([tanggalTerapi])

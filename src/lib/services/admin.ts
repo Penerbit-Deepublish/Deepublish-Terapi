@@ -156,8 +156,8 @@ export async function listPeserta(page: number, pageSize: number, q?: string) {
     ? {
         OR: [
           { namaLengkap: { contains: q, mode: "insensitive" as const } },
-          { nomorHp: { contains: q } },
-          { alamat: { contains: q, mode: "insensitive" as const } },
+          { departemen: { contains: q, mode: "insensitive" as const } },
+          { statusKepesertaan: { contains: q, mode: "insensitive" as const } },
         ],
       }
     : undefined;
@@ -183,14 +183,15 @@ export async function listPeserta(page: number, pageSize: number, q?: string) {
     items: rows.map((item) => ({
       id: item.id,
       nama_lengkap: item.namaLengkap,
-      nomor_hp: item.nomorHp,
-      usia: item.usia,
-      alamat: item.alamat,
+      departemen: item.departemen,
+      status_kepesertaan: item.statusKepesertaan,
+      tanggal_lahir: item.tanggalLahir ? formatDateOnly(item.tanggalLahir) : null,
       jenis_kelamin: item.jenisKelamin,
-      tanggal_terapi: formatDateOnly(item.tanggalTerapi),
-      jam_sesi: sessionMap.get(item.jamSesi) || item.jamSesi,
-      keluhan: item.keluhan,
-      catatan_tambahan: item.catatanTambahan,
+      jam_kehadiran: sessionMap.get(item.jamSesi) || item.jamSesi,
+      keluhan_luar: item.keluhanLuar,
+      keluhan_luar_lainnya: item.keluhanLuarLainnya,
+      keluhan_dalam: item.keluhanDalam,
+      keluhan_dalam_lainnya: item.keluhanDalamLainnya,
       paket: item.paket,
       created_at: item.createdAt.toISOString(),
     })),

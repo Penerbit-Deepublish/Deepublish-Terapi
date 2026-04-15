@@ -4,16 +4,45 @@ const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
 export const bookingApiSchema = z.object({
   nama_lengkap: z.string().trim().min(3),
-  nomor_hp: z.string().trim().regex(/^[0-9]{10,15}$/),
-  usia: z.number().int().min(1).max(120),
-  alamat: z.string().trim().min(8),
+  departemen: z.string().trim().min(1),
+  status_kepesertaan: z.enum(["KARYAWAN", "KELUARGA"]),
+  tanggal_lahir: z.string().regex(dateRegex),
   jenis_kelamin: z.enum(["L", "P"]),
-  lokasi_terapi: z.string().trim().min(1),
-  tanggal_terapi: z.string().regex(dateRegex),
-  keluhan: z.array(z.string().trim().min(1)).min(1),
-  catatan_tambahan: z.string().trim().max(500).optional(),
+  lokasi_terapi: z.string().trim().min(1).optional(),
   paket: z.enum(["LENGKAP", "SEBAGIAN"]),
+  keluhan_luar: z.array(z.string().trim().min(1)).default([]),
+  keluhan_luar_lainnya: z.string().trim().max(200).optional(),
+  keluhan_dalam: z.array(z.string().trim().min(1)).default([]),
+  keluhan_dalam_lainnya: z.string().trim().max(200).optional(),
   sesi_id: z.uuid(),
+}).superRefine((val, ctx) => {
+  const hasKeluhan =
+    (val.keluhan_luar?.length ?? 0) > 0 ||
+    (val.keluhan_dalam?.length ?? 0) > 0 ||
+    Boolean(val.keluhan_luar_lainnya?.trim()) ||
+    Boolean(val.keluhan_dalam_lainnya?.trim());
+  if (!hasKeluhan) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Pilih setidaknya satu keluhan (luar/dalam) atau isi yang lain.",
+      path: ["keluhan_luar"],
+    });
+  }
+
+  if (val.keluhan_luar?.includes("Yang lain") && !val.keluhan_luar_lainnya?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Mohon isi detail untuk pilihan 'Yang lain' (keluhan luar).",
+      path: ["keluhan_luar_lainnya"],
+    });
+  }
+  if (val.keluhan_dalam?.includes("Yang lain") && !val.keluhan_dalam_lainnya?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Mohon isi detail untuk pilihan 'Yang lain' (keluhan dalam).",
+      path: ["keluhan_dalam_lainnya"],
+    });
+  }
 });
 
 export const quotaQuerySchema = z.object({

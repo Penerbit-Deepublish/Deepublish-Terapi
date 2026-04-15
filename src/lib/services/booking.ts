@@ -120,7 +120,12 @@ export async function getSesiAvailability(dateString: string): Promise<SessionAv
 }
 
 export async function createBooking(input: BookingApiInput) {
-  const tanggal = parseDateOnly(input.tanggal_terapi);
+  const tanggal = parseDateOnly(process.env.DEFAULT_TANGGAL_TERAPI ?? formatDateOnly(startOfTodayUtc()));
+  const tanggalLahir = parseDateOnly(input.tanggal_lahir);
+  const lokasiTerapi =
+    input.lokasi_terapi?.trim() ||
+    process.env.DEFAULT_LOKASI_TERAPI ||
+    "Klinik Utama Bio Elektrik Deepublish";
 
   return prisma.$transaction(async (tx) => {
     const [session, existingQuota, totalSessionsCapacity, sessionBookings, dailyBookings] = await Promise.all([
@@ -159,16 +164,25 @@ export async function createBooking(input: BookingApiInput) {
     const booking = await tx.terapi.create({
       data: {
         namaLengkap: input.nama_lengkap,
-        nomorHp: input.nomor_hp,
-        usia: input.usia,
-        alamat: input.alamat,
         jenisKelamin: input.jenis_kelamin,
-        lokasiTerapi: input.lokasi_terapi,
+        lokasiTerapi,
         tanggalTerapi: tanggal,
-        keluhan: input.keluhan,
-        catatanTambahan: input.catatan_tambahan,
         paket: input.paket,
         jamSesi: input.sesi_id,
+        departemen: input.departemen,
+        statusKepesertaan: input.status_kepesertaan,
+        tanggalLahir,
+        keluhanLuar: input.keluhan_luar,
+        keluhanLuarLainnya: input.keluhan_luar_lainnya?.trim() || null,
+        keluhanDalam: input.keluhan_dalam,
+        keluhanDalamLainnya: input.keluhan_dalam_lainnya?.trim() || null,
+        // Backward-compatible combined field (used by some existing admin UI/search)
+        keluhan: [
+          ...input.keluhan_luar,
+          ...(input.keluhan_luar_lainnya?.trim() ? [`Yang lain (luar): ${input.keluhan_luar_lainnya.trim()}`] : []),
+          ...input.keluhan_dalam,
+          ...(input.keluhan_dalam_lainnya?.trim() ? [`Yang lain (dalam): ${input.keluhan_dalam_lainnya.trim()}`] : []),
+        ],
       },
     });
 
@@ -194,11 +208,8 @@ export async function createBooking(input: BookingApiInput) {
     return {
       id: booking.id,
       nama_lengkap: booking.namaLengkap,
-      usia: booking.usia,
-      alamat: booking.alamat,
       tanggal_terapi: formatDateOnly(booking.tanggalTerapi),
       sesi_id: booking.jamSesi,
-      catatan_tambahan: booking.catatanTambahan,
       paket: booking.paket,
       created_at: booking.createdAt.toISOString(),
     };
