@@ -48,4 +48,6 @@ export const bookingFormSchema = z.object({
   }
 });
 
-export type BookingFormValues = z.infer<typeof bookingFormSchema>;
+// `zodResolver` uses the schema's *input* type. Keep form values aligned with that type
+// (not the output type after defaults are applied) to avoid TS resolver incompatibilities.
+export type BookingFormValues = z.input<typeof bookingFormSchema>;
