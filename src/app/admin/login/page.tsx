@@ -75,7 +75,7 @@ export default function AdminLogin() {
             <Label>Email</Label>
             <div className="relative">
               <User className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
-              <Input {...form.register("email")} className="pl-10 py-6" placeholder="admin@terapi.local" />
+              <Input {...form.register("email")} className="pl-10 py-6" placeholder="nama@perusahaan.com" />
             </div>
             {form.formState.errors.email && (
               <p className="text-sm text-red-500">{form.formState.errors.email.message}</p>
@@ -86,7 +86,12 @@ export default function AdminLogin() {
             <Label>Password</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
-              <Input type="password" {...form.register("password")} className="pl-10 py-6" placeholder="admin123" />
+              <Input
+                type="password"
+                {...form.register("password")}
+                className="pl-10 py-6"
+                placeholder="Masukkan kata sandi akun admin"
+              />
             </div>
             {form.formState.errors.password && (
               <p className="text-sm text-red-500">{form.formState.errors.password.message}</p>

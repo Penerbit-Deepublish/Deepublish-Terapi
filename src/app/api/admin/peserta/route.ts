@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   const query = {
     page: req.nextUrl.searchParams.get("page") ?? 1,
-    pageSize: req.nextUrl.searchParams.get("pageSize") ?? 10,
+    pageSize: req.nextUrl.searchParams.get("pageSize") ?? 15,
     q: req.nextUrl.searchParams.get("q") ?? undefined,
   };
 

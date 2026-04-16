@@ -15,6 +15,8 @@ interface KuotaItem {
   kuota_terpakai: number;
 }
 
+const PAGE_SIZE = 15;
+
 export default function ManageKuota() {
   const [kuotaData, setKuotaData] = useState<KuotaItem[]>([]);
   const [singleEdits, setSingleEdits] = useState<Record<string, number>>({});
@@ -23,6 +25,7 @@ export default function ManageKuota() {
   const [kuotaMassal, setKuotaMassal] = useState(10);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadKuota = useCallback(async () => {
     const res = await fetch("/api/admin/kuota");
@@ -32,6 +35,7 @@ export default function ManageKuota() {
       return;
     }
     setKuotaData(json.data);
+    setCurrentPage(1);
     setSingleEdits(
       Object.fromEntries((json.data as KuotaItem[]).map((item) => [item.id, item.kuota_max])),
     );
@@ -84,6 +88,10 @@ export default function ManageKuota() {
     setMessage(`Kuota tanggal ${tanggal} diperbarui`);
     await loadKuota();
   };
+
+  const totalPages = Math.max(1, Math.ceil(kuotaData.length / PAGE_SIZE));
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const paginatedKuota = kuotaData.slice(startIndex, startIndex + PAGE_SIZE);
 
   return (
     <div className="space-y-8">
@@ -142,7 +150,7 @@ export default function ManageKuota() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {kuotaData.map((k) => (
+                  {paginatedKuota.map((k) => (
                     <TableRow key={k.id}>
                       <TableCell className="font-medium">{k.tanggal}</TableCell>
                       <TableCell>
@@ -169,6 +177,29 @@ export default function ManageKuota() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">
+                Halaman {currentPage} dari {totalPages} • {PAGE_SIZE} data per halaman
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

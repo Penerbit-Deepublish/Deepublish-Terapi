@@ -5,6 +5,8 @@ export interface AdminJwtPayload {
   sub: string;
   email: string;
   role: "admin";
+  name?: string;
+  avatar?: string;
 }
 
 function getSecret() {

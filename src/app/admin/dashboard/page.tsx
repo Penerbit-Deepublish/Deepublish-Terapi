@@ -30,8 +30,12 @@ interface DashboardResponse {
 export default function AdminDashboard() {
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [error, setError] = useState("");
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsClient(true);
+
     const load = async () => {
       const res = await fetch("/api/admin/dashboard");
       const json = await res.json();
@@ -102,15 +106,19 @@ export default function AdminDashboard() {
             <CardTitle>Tren Reservasi Harian</CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={dailyData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="tanggal" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip />
-                <Line type="monotone" dataKey="total" stroke="#165cab" strokeWidth={3} />
-              </LineChart>
-            </ResponsiveContainer>
+            {isClient ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={dailyData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="tanggal" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="total" stroke="#165cab" strokeWidth={3} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full rounded-md bg-muted/40" />
+            )}
           </CardContent>
         </Card>
 
@@ -119,16 +127,20 @@ export default function AdminDashboard() {
             <CardTitle>Penggunaan Kuota per Sesi (Hari Ini)</CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={sesiData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="jam" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip />
-                <Bar dataKey="terpakai" stackId="a" fill="#165cab" radius={[0, 0, 4, 4]} />
-                <Bar dataKey="sisa" stackId="a" fill="#3ab5ad" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {isClient ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={sesiData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="jam" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip />
+                  <Bar dataKey="terpakai" stackId="a" fill="#165cab" radius={[0, 0, 4, 4]} />
+                  <Bar dataKey="sisa" stackId="a" fill="#3ab5ad" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full rounded-md bg-muted/40" />
+            )}
           </CardContent>
         </Card>
       </div>

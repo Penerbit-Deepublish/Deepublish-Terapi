@@ -33,6 +33,35 @@ export const setSesiSchema = z.object({
 
 export const pesertaQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(10),
+  pageSize: z.coerce.number().int().min(1).max(100).default(15),
   q: z.string().optional(),
 });
+
+export const adminProfileUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  email: z.string().trim().email(),
+  avatar: z.string().trim().url(),
+});
+
+export const adminPasswordChangeSchema = z
+  .object({
+    current_password: z.string().min(1),
+    new_password: z.string().min(8).max(72),
+    confirm_password: z.string().min(1),
+  })
+  .superRefine((value, ctx) => {
+    if (value.new_password !== value.confirm_password) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["confirm_password"],
+        message: "Konfirmasi password tidak cocok",
+      });
+    }
+    if (value.current_password === value.new_password) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["new_password"],
+        message: "Password baru harus berbeda dari password saat ini",
+      });
+    }
+  });

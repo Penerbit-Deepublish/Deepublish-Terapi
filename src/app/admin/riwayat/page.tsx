@@ -30,6 +30,8 @@ interface PesertaResponse {
   totalPages: number;
 }
 
+const PAGE_SIZE = 15;
+
 export default function RiwayatPeserta() {
   const [searchTerm, setSearchTerm] = useState("");
   const [data, setData] = useState<PesertaResponse | null>(null);
@@ -37,7 +39,7 @@ export default function RiwayatPeserta() {
   const [error, setError] = useState("");
 
   const loadData = useCallback(async (targetPage = page, q = searchTerm) => {
-    const params = new URLSearchParams({ page: String(targetPage), pageSize: "10" });
+    const params = new URLSearchParams({ page: String(targetPage), pageSize: String(PAGE_SIZE) });
     if (q) params.set("q", q);
 
     const res = await fetch(`/api/admin/peserta?${params.toString()}`);
@@ -169,7 +171,11 @@ export default function RiwayatPeserta() {
               </TableBody>
             </Table>
           </div>
-          <div className="p-4 border-t flex justify-end gap-2">
+          <div className="p-4 border-t flex items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              Halaman {page} dari {totalPages} • {PAGE_SIZE} data per halaman
+            </p>
+            <div className="flex gap-2">
             <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => loadData(page - 1, searchTerm)}>
               Previous
             </Button>
@@ -181,6 +187,7 @@ export default function RiwayatPeserta() {
             >
               Next
             </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { fail, ok } from "@/app/api/_utils/http";
 import { AUTH_COOKIE, signAdminToken } from "@/lib/auth";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { DEFAULT_ADMIN_AVATAR } from "@/lib/constants";
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req.headers);
@@ -30,7 +31,14 @@ export async function POST(req: NextRequest) {
   const envAdminPassword = process.env.ADMIN_PASSWORD;
 
   const issueToken = (sub: string, email: string) => {
-    const token = signAdminToken({ sub, email, role: "admin" });
+    const defaultName = email.split("@")[0] || "Admin";
+    const token = signAdminToken({
+      sub,
+      email,
+      role: "admin",
+      name: defaultName,
+      avatar: DEFAULT_ADMIN_AVATAR,
+    });
     const response = ok({ token, email });
     response.cookies.set({
       name: AUTH_COOKIE,

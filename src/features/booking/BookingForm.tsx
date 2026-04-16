@@ -388,25 +388,27 @@ export function BookingForm() {
             name="keluhanLuar"
             render={({ field }) => (
               <div className="space-y-2">
-                {(KELUHAN_LUAR_OPTIONS as readonly string[]).map((opt) => (
-                  <label
-                    key={opt}
-                    className={cn(
-                      "flex items-start gap-3 rounded-2xl border border-border bg-muted/20 px-4 py-3 transition-colors",
-                      "hover:bg-muted/30",
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      className={cn("mt-0.5 h-4 w-4 rounded border-border accent-[#185cab]", focusStrokeClass)}
-                      checked={(field.value ?? []).includes(opt)}
-                      onChange={(e) => field.onChange(toggleValue(field.value ?? [], opt, e.target.checked))}
-                    />
-                    <span className="text-sm leading-6">{opt}</span>
-                  </label>
-                ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {(KELUHAN_LUAR_OPTIONS as readonly string[]).map((opt) => (
+                    <label
+                      key={opt}
+                      className={cn(
+                        "h-full flex items-start gap-3 rounded-2xl border border-border bg-muted/20 px-4 py-3 transition-colors",
+                        "hover:bg-muted/30",
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        className={cn("mt-0.5 h-4 w-4 rounded border-border accent-[#185cab]", focusStrokeClass)}
+                        checked={(field.value ?? []).includes(opt)}
+                        onChange={(e) => field.onChange(toggleValue(field.value ?? [], opt, e.target.checked))}
+                      />
+                      <span className="text-sm leading-6">{opt}</span>
+                    </label>
+                  ))}
+                </div>
                 {form.formState.errors.keluhanLuar && (
-                  <p className="text-red-500 text-sm mt-1">
+                  <p className="text-red-500 text-sm">
                     {form.formState.errors.keluhanLuar.message as string}
                   </p>
                 )}
@@ -435,25 +437,27 @@ export function BookingForm() {
             name="keluhanDalam"
             render={({ field }) => (
               <div className="space-y-2">
-                {(KELUHAN_DALAM_OPTIONS as readonly string[]).map((opt) => (
-                  <label
-                    key={opt}
-                    className={cn(
-                      "flex items-start gap-3 rounded-2xl border border-border bg-muted/20 px-4 py-3 transition-colors",
-                      "hover:bg-muted/30",
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      className={cn("mt-0.5 h-4 w-4 rounded border-border accent-[#185cab]", focusStrokeClass)}
-                      checked={(field.value ?? []).includes(opt)}
-                      onChange={(e) => field.onChange(toggleValue(field.value ?? [], opt, e.target.checked))}
-                    />
-                    <span className="text-sm leading-6">{opt}</span>
-                  </label>
-                ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {(KELUHAN_DALAM_OPTIONS as readonly string[]).map((opt) => (
+                    <label
+                      key={opt}
+                      className={cn(
+                        "h-full flex items-start gap-3 rounded-2xl border border-border bg-muted/20 px-4 py-3 transition-colors",
+                        "hover:bg-muted/30",
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        className={cn("mt-0.5 h-4 w-4 rounded border-border accent-[#185cab]", focusStrokeClass)}
+                        checked={(field.value ?? []).includes(opt)}
+                        onChange={(e) => field.onChange(toggleValue(field.value ?? [], opt, e.target.checked))}
+                      />
+                      <span className="text-sm leading-6">{opt}</span>
+                    </label>
+                  ))}
+                </div>
                 {form.formState.errors.keluhanDalam && (
-                  <p className="text-red-500 text-sm mt-1">
+                  <p className="text-red-500 text-sm">
                     {form.formState.errors.keluhanDalam.message as string}
                   </p>
                 )}
