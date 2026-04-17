@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowUpRight, Package, ShoppingCart, UsersRound, Activity } from "lucide-react";
 import {
@@ -31,7 +31,7 @@ type MetricCard = {
   note: string;
   delta: string;
   tone?: "primary" | "plain";
-  icon: (props: { className?: string }) => JSX.Element;
+  icon: ComponentType<{ className?: string }>;
 };
 
 function RingLayer({ size, value, color }: { size: number; value: number; color: string }) {
