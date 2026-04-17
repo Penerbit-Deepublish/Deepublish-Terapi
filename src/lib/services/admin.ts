@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import type { Prisma } from "@prisma/client";
 import { addDays, formatDateOnly, parseDateOnly, startOfTodayUtc } from "@/lib/services/date";
-import { getQuotaByDate, getQuotaByRange } from "@/lib/services/booking";
+import { getQuotaByDate } from "@/lib/services/booking";
 
 export async function getDashboardData(input?: { from?: string; to?: string }) {
   const today = startOfTodayUtc();
@@ -133,7 +133,54 @@ export async function listKuota(dateFrom?: string, dateTo?: string) {
   const today = startOfTodayUtc();
   const from = dateFrom ? parseDateOnly(dateFrom) : today;
   const to = dateTo ? parseDateOnly(dateTo) : addDays(from, 30);
-  return getQuotaByRange(formatDateOnly(from), formatDateOnly(to));
+  if (to < from) {
+    throw new Error("INVALID_DATE_RANGE");
+  }
+
+  const [rows, bookingsByDate] = await Promise.all([
+    prisma.kuota.findMany({
+      where: { tanggal: { gte: from, lte: to } },
+      orderBy: { tanggal: "asc" },
+      select: { id: true, tanggal: true, kuotaMax: true },
+    }),
+    prisma.terapi.groupBy({
+      by: ["tanggalTerapi"],
+      where: { tanggalTerapi: { gte: from, lte: to } },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const bookedMap = new Map(
+    bookingsByDate.map((row) => [formatDateOnly(row.tanggalTerapi), row._count._all] as const),
+  );
+
+  return rows.map((item) => {
+    const tanggal = formatDateOnly(item.tanggal);
+    const kuotaTerpakai = bookedMap.get(tanggal) ?? 0;
+    return {
+      id: item.id,
+      tanggal,
+      kuota_max: item.kuotaMax,
+      kuota_terpakai: kuotaTerpakai,
+      sisa: Math.max(0, item.kuotaMax - kuotaTerpakai),
+    };
+  });
+}
+
+export async function deleteKuotaByTanggal(tanggalString: string) {
+  const tanggal = parseDateOnly(tanggalString);
+  return prisma.$transaction(async (tx) => {
+    const kuota = await tx.kuota.findUnique({ where: { tanggal } });
+    if (!kuota) return null;
+
+    const bookingCount = await tx.terapi.count({ where: { tanggalTerapi: tanggal } });
+    if (bookingCount > 0) {
+      throw new Error("QUOTA_HAS_BOOKING");
+    }
+
+    await tx.kuota.delete({ where: { id: kuota.id } });
+    return { id: kuota.id, tanggal: tanggalString };
+  });
 }
 
 export async function upsertSesi(input: { id?: string; jam: string; kapasitas: number }) {

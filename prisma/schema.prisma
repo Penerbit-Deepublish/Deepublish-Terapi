@@ -9,29 +9,32 @@ datasource db {
 }
 
 model Terapi {
-  id            String   @id @default(uuid()) @db.Uuid
-  namaLengkap   String   @map("nama_lengkap") @db.Text
-  nomorHp       String?  @map("nomor_hp") @db.Text
-  usia          Int?
-  alamat        String?  @db.Text
-  jenisKelamin  String   @map("jenis_kelamin") @db.Text
-  lokasiTerapi  String   @map("lokasi_terapi") @db.Text
-  tanggalTerapi DateTime @map("tanggal_terapi") @db.Date
-  keluhan       String[] @db.Text
-  catatanTambahan String? @map("catatan_tambahan") @db.Text
-  paket         String   @db.Text
-  jamSesi       String   @map("jam_sesi") @db.Text
-  departemen    String?  @db.Text
-  statusKepesertaan String? @map("status_kepesertaan") @db.Text
-  tanggalLahir  DateTime? @map("tanggal_lahir") @db.Date
-  keluhanLuar   String[] @map("keluhan_luar") @db.Text
-  keluhanLuarLainnya String? @map("keluhan_luar_lainnya") @db.Text
-  keluhanDalam  String[] @map("keluhan_dalam") @db.Text
-  keluhanDalamLainnya String? @map("keluhan_dalam_lainnya") @db.Text
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  id                  String        @id @default(uuid()) @db.Uuid
+  namaLengkap         String        @map("nama_lengkap") @db.Text
+  nomorHp             String?       @map("nomor_hp") @db.Text
+  usia                Int?
+  alamat              String?       @db.Text
+  jenisKelamin        String        @map("jenis_kelamin") @db.Text
+  lokasiTerapi        String        @map("lokasi_terapi") @db.Text
+  tanggalTerapi       DateTime      @map("tanggal_terapi") @db.Date
+  keluhan             String[]      @db.Text
+  catatanTambahan     String?       @map("catatan_tambahan") @db.Text
+  paket               String        @db.Text
+  jamSesi             String        @map("jam_sesi") @db.Text
+  departemen          String?       @db.Text
+  statusKepesertaan   String?       @map("status_kepesertaan") @db.Text
+  tanggalLahir        DateTime?     @map("tanggal_lahir") @db.Date
+  keluhanLuar         String[]      @map("keluhan_luar") @db.Text
+  keluhanLuarLainnya  String?       @map("keluhan_luar_lainnya") @db.Text
+  keluhanDalam        String[]      @map("keluhan_dalam") @db.Text
+  keluhanDalamLainnya String?       @map("keluhan_dalam_lainnya") @db.Text
+  jadwalTerapiId      String?       @map("jadwal_terapi_id") @db.Uuid
+  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+  jadwalTerapi        JadwalTerapi? @relation(fields: [jadwalTerapiId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([tanggalTerapi])
   @@index([tanggalTerapi, jamSesi])
+  @@index([jadwalTerapiId])
   @@map("terapi")
   @@schema("hris")
 }
@@ -49,7 +52,7 @@ model Kuota {
   id            String   @id @default(uuid()) @db.Uuid
   tanggal       DateTime @unique @db.Date
   kuotaMax      Int      @map("kuota_max")
-  kuotaTerpakai Int      @map("kuota_terpakai") @default(0)
+  kuotaTerpakai Int      @default(0) @map("kuota_terpakai")
 
   @@index([tanggal])
   @@map("kuota")
@@ -57,12 +60,32 @@ model Kuota {
 }
 
 model Sesi {
-  id       String @id @default(uuid()) @db.Uuid
-  jam      String @unique @db.Text
-  kapasitas Int
-  terisi   Int    @default(0)
+  id           String         @id @default(uuid()) @db.Uuid
+  jam          String         @unique @db.Text
+  kapasitas    Int
+  terisi       Int            @default(0)
+  jadwalTerapi JadwalTerapi[]
 
   @@index([jam])
   @@map("sesi")
+  @@schema("hris")
+}
+
+model JadwalTerapi {
+  id            String   @id @default(uuid()) @db.Uuid
+  tanggal       DateTime @db.Date
+  sesiId        String   @map("sesi_id") @db.Uuid
+  kuotaMax      Int      @default(3) @map("kuota_max")
+  kuotaTerpakai Int      @default(0) @map("kuota_terpakai")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  sesi      Sesi     @relation(fields: [sesiId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  reservasi Terapi[]
+
+  @@unique([tanggal, sesiId])
+  @@index([tanggal])
+  @@index([sesiId])
+  @@map("jadwal_terapi")
   @@schema("hris")
 }

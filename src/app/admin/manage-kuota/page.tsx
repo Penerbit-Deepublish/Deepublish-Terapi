@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Save } from "lucide-react";
+import { Save, Trash2 } from "lucide-react";
 import { DateRangeFilter } from "@/components/admin/date-range-filter";
 
 interface KuotaItem {
@@ -109,6 +109,25 @@ export default function ManageKuota() {
     }
 
     setMessage(`Kuota tanggal ${tanggal} diperbarui`);
+    await loadKuota(dateFrom, dateTo);
+  };
+
+  const deleteRow = async (tanggal: string) => {
+    setError("");
+    setMessage("");
+    const confirmed = window.confirm(`Hapus kuota untuk tanggal ${tanggal}?`);
+    if (!confirmed) return;
+
+    const res = await fetch(`/api/admin/kuota?tanggal=${encodeURIComponent(tanggal)}`, {
+      method: "DELETE",
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      setError(json.message || "Gagal menghapus kuota");
+      return;
+    }
+
+    setMessage(`Kuota tanggal ${tanggal} berhasil dihapus`);
     await loadKuota(dateFrom, dateTo);
   };
 
@@ -215,13 +234,23 @@ export default function ManageKuota() {
                       </TableCell>
                       <TableCell>{k.kuota_terpakai}</TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => saveRow(k.tanggal, singleEdits[k.id] ?? k.kuota_max)}
-                        >
-                          Simpan
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => saveRow(k.tanggal, singleEdits[k.id] ?? k.kuota_max)}
+                          >
+                            Simpan
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                            onClick={() => deleteRow(k.tanggal)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

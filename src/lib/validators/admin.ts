@@ -60,6 +60,10 @@ export const adminDateRangeQuerySchema = z.object({
   }
 });
 
+export const deleteKuotaQuerySchema = z.object({
+  tanggal: z.string().regex(dateRegex),
+});
+
 export const penggunaQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(15),

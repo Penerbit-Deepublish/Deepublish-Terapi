@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Save } from "lucide-react";
+import { Save, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,6 +73,25 @@ export default function ManageJadwalPage() {
     }
 
     setMessage(`Jadwal tanggal ${tanggal} berhasil disimpan`);
+    await loadJadwal(dateFrom, dateTo);
+  };
+
+  const deleteJadwal = async (tanggalValue: string) => {
+    setError("");
+    setMessage("");
+    const confirmed = window.confirm(`Hapus jadwal tanggal ${tanggalValue}?`);
+    if (!confirmed) return;
+
+    const res = await fetch(`/api/admin/kuota?tanggal=${encodeURIComponent(tanggalValue)}`, {
+      method: "DELETE",
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      setError(json.message || "Gagal menghapus jadwal");
+      return;
+    }
+
+    setMessage(`Jadwal tanggal ${tanggalValue} berhasil dihapus`);
     await loadJadwal(dateFrom, dateTo);
   };
 
@@ -156,6 +175,7 @@ export default function ManageJadwalPage() {
                   <TableHead>Kuota Maks</TableHead>
                   <TableHead>Terpakai</TableHead>
                   <TableHead>Sisa</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -167,11 +187,21 @@ export default function ManageJadwalPage() {
                       <TableCell>{item.kuota_max}</TableCell>
                       <TableCell>{item.kuota_terpakai}</TableCell>
                       <TableCell>{sisa}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                          onClick={() => deleteJadwal(item.tanggal)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   );
                 }) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                    <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
                       Tidak ada data jadwal
                     </TableCell>
                   </TableRow>
