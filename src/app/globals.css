@@ -182,3 +182,25 @@
   background-clip: text;
 }
 
+@keyframes neonPulseTealSlow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(71, 168, 162, 0.48),
+      0 0 8px rgba(71, 168, 162, 0.45),
+      0 0 18px rgba(71, 168, 162, 0.3);
+    opacity: 1;
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(71, 168, 162, 0.8),
+      0 0 14px rgba(71, 168, 162, 0.8),
+      0 0 26px rgba(71, 168, 162, 0.55);
+    opacity: 0.92;
+  }
+}
+
+.badge-neon-teal {
+  background-color: #47a8a2;
+  animation: neonPulseTealSlow 2.8s ease-in-out infinite;
+}

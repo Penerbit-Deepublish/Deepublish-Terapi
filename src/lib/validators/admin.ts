@@ -35,12 +35,45 @@ export const pesertaQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(15),
   q: z.string().optional(),
+  from: z.string().regex(dateRegex).optional(),
+  to: z.string().regex(dateRegex).optional(),
+}).superRefine((value, ctx) => {
+  if (value.from && value.to && value.to < value.from) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["to"],
+      message: "Tanggal selesai tidak boleh lebih kecil dari tanggal mulai",
+    });
+  }
+});
+
+export const adminDateRangeQuerySchema = z.object({
+  from: z.string().regex(dateRegex).optional(),
+  to: z.string().regex(dateRegex).optional(),
+}).superRefine((value, ctx) => {
+  if (value.from && value.to && value.to < value.from) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["to"],
+      message: "Tanggal selesai tidak boleh lebih kecil dari tanggal mulai",
+    });
+  }
 });
 
 export const penggunaQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(15),
   q: z.string().trim().optional(),
+  from: z.string().regex(dateRegex).optional(),
+  to: z.string().regex(dateRegex).optional(),
+}).superRefine((value, ctx) => {
+  if (value.from && value.to && value.to < value.from) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["to"],
+      message: "Tanggal selesai tidak boleh lebih kecil dari tanggal mulai",
+    });
+  }
 });
 
 export const createPenggunaSchema = z.object({

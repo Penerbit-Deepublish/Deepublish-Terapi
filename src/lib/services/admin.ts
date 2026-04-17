@@ -1,28 +1,40 @@
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import type { Prisma } from "@prisma/client";
 import { addDays, formatDateOnly, parseDateOnly, startOfTodayUtc } from "@/lib/services/date";
 import { getQuotaByDate, getQuotaByRange } from "@/lib/services/booking";
 
-export async function getDashboardData() {
+export async function getDashboardData(input?: { from?: string; to?: string }) {
   const today = startOfTodayUtc();
-  const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
-  const weekStart = addDays(today, -6);
-  const todayString = formatDateOnly(today);
+  const rangeEnd = input?.to ? parseDateOnly(input.to) : today;
+  const rangeStart = input?.from ? parseDateOnly(input.from) : addDays(rangeEnd, -6);
+  if (rangeEnd < rangeStart) {
+    throw new Error("INVALID_DATE_RANGE");
+  }
+  const monthStart = new Date(Date.UTC(rangeEnd.getUTCFullYear(), rangeEnd.getUTCMonth(), 1));
+  const todayString = formatDateOnly(rangeEnd);
+  const isFiltered = Boolean(input?.from || input?.to);
 
   const [monthlyCount, todayQuota, sessions, weekBookings, todayBookings] = await Promise.all([
-    prisma.terapi.count({ where: { createdAt: { gte: monthStart } } }),
+    prisma.terapi.count({
+      where: isFiltered
+        ? { tanggalTerapi: { gte: rangeStart, lte: rangeEnd } }
+        : { createdAt: { gte: monthStart } },
+    }),
     getQuotaByDate(todayString),
     prisma.sesi.findMany({ orderBy: { jam: "asc" } }),
     prisma.terapi.findMany({
-      where: { tanggalTerapi: { gte: weekStart, lte: today } },
+      where: { tanggalTerapi: { gte: rangeStart, lte: rangeEnd } },
       select: { tanggalTerapi: true },
     }),
-    prisma.terapi.findMany({ where: { tanggalTerapi: today }, select: { jamSesi: true } }),
+    prisma.terapi.findMany({ where: { tanggalTerapi: rangeEnd }, select: { jamSesi: true } }),
   ]);
 
   const dailyMap = new Map<string, number>();
-  for (let i = 0; i < 7; i += 1) {
-    dailyMap.set(formatDateOnly(addDays(weekStart, i)), 0);
+  let cursor = new Date(rangeStart);
+  while (cursor <= rangeEnd) {
+    dailyMap.set(formatDateOnly(cursor), 0);
+    cursor = addDays(cursor, 1);
   }
   for (const row of weekBookings) {
     const key = formatDateOnly(row.tanggalTerapi);
@@ -152,21 +164,35 @@ export async function listSesi() {
   }));
 }
 
-export async function listPeserta(page: number, pageSize: number, q?: string) {
-  const where = q
-    ? {
-        OR: [
-          { namaLengkap: { contains: q, mode: "insensitive" as const } },
-          { departemen: { contains: q, mode: "insensitive" as const } },
-          { statusKepesertaan: { contains: q, mode: "insensitive" as const } },
-        ],
-      }
-    : undefined;
+export async function listPeserta(
+  page: number,
+  pageSize: number,
+  q?: string,
+  dateFrom?: string,
+  dateTo?: string,
+) {
+  const where: Prisma.TerapiWhereInput = {};
+  if (q) {
+    where.OR = [
+      { namaLengkap: { contains: q, mode: "insensitive" } },
+      { departemen: { contains: q, mode: "insensitive" } },
+      { statusKepesertaan: { contains: q, mode: "insensitive" } },
+    ];
+  }
+  if (dateFrom || dateTo) {
+    const from = dateFrom ? parseDateOnly(dateFrom) : undefined;
+    const to = dateTo ? parseDateOnly(dateTo) : undefined;
+    where.tanggalTerapi = {
+      ...(from ? { gte: from } : {}),
+      ...(to ? { lte: to } : {}),
+    };
+  }
+  const whereClause = Object.keys(where).length > 0 ? where : undefined;
 
   const [total, rows, sessions] = await Promise.all([
-    prisma.terapi.count({ where }),
+    prisma.terapi.count({ where: whereClause }),
     prisma.terapi.findMany({
-      where,
+      where: whereClause,
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -184,6 +210,7 @@ export async function listPeserta(page: number, pageSize: number, q?: string) {
     items: rows.map((item) => ({
       id: item.id,
       nama_lengkap: item.namaLengkap,
+      tanggal_terapi: formatDateOnly(item.tanggalTerapi),
       departemen: item.departemen,
       status_kepesertaan: item.statusKepesertaan,
       tanggal_lahir: item.tanggalLahir ? formatDateOnly(item.tanggalLahir) : null,
@@ -225,17 +252,23 @@ export async function deletePeserta(id: string) {
   });
 }
 
-export async function listPengguna(page: number, pageSize: number, q?: string) {
-  const where = q
-    ? {
-        email: { contains: q, mode: "insensitive" as const },
-      }
-    : undefined;
+export async function listPengguna(
+  page: number,
+  pageSize: number,
+  q?: string,
+  _dateFrom?: string,
+  _dateTo?: string,
+) {
+  const where: Prisma.AdminUserWhereInput = {};
+  if (q) {
+    where.email = { contains: q, mode: "insensitive" };
+  }
+  const whereClause = Object.keys(where).length > 0 ? where : undefined;
 
   const [total, rows] = await Promise.all([
-    prisma.adminUser.count({ where }),
+    prisma.adminUser.count({ where: whereClause }),
     prisma.adminUser.findMany({
-      where,
+      where: whereClause,
       orderBy: { email: "asc" },
       skip: (page - 1) * pageSize,
       take: pageSize,

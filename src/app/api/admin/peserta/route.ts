@@ -12,6 +12,8 @@ export async function GET(req: NextRequest) {
     page: req.nextUrl.searchParams.get("page") ?? 1,
     pageSize: req.nextUrl.searchParams.get("pageSize") ?? 15,
     q: req.nextUrl.searchParams.get("q") ?? undefined,
+    from: req.nextUrl.searchParams.get("from") ?? undefined,
+    to: req.nextUrl.searchParams.get("to") ?? undefined,
   };
 
   const parsed = pesertaQuerySchema.safeParse(query);
@@ -19,6 +21,12 @@ export async function GET(req: NextRequest) {
     return fail("Invalid query", 422, parsed.error.flatten());
   }
 
-  const data = await listPeserta(parsed.data.page, parsed.data.pageSize, parsed.data.q);
+  const data = await listPeserta(
+    parsed.data.page,
+    parsed.data.pageSize,
+    parsed.data.q,
+    parsed.data.from,
+    parsed.data.to,
+  );
   return ok(data);
 }

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Save } from "lucide-react";
+import { DateRangeFilter } from "@/components/admin/date-range-filter";
 
 interface KuotaItem {
   id: string;
@@ -27,11 +28,16 @@ export default function ManageKuota() {
   const [message, setMessage] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
-  const loadKuota = useCallback(async () => {
+  const loadKuota = useCallback(async (from: string, to: string) => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/admin/kuota");
+      const params = new URLSearchParams();
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+      const res = await fetch(`/api/admin/kuota?${params.toString()}`);
       const json = await res.json();
       if (!res.ok || !json.success) {
         setError(json.message || "Gagal memuat kuota");
@@ -48,7 +54,7 @@ export default function ManageKuota() {
   }, []);
 
   useEffect(() => {
-    void loadKuota();
+    void loadKuota("", "");
   }, [loadKuota]);
 
   const applyMassal = async () => {
@@ -84,7 +90,7 @@ export default function ManageKuota() {
     }
 
     setMessage("Kuota massal berhasil disimpan");
-    await loadKuota();
+    await loadKuota(dateFrom, dateTo);
   };
 
   const saveRow = async (tanggal: string, kuotaMax: number) => {
@@ -103,7 +109,7 @@ export default function ManageKuota() {
     }
 
     setMessage(`Kuota tanggal ${tanggal} diperbarui`);
-    await loadKuota();
+    await loadKuota(dateFrom, dateTo);
   };
 
   const totalPages = Math.max(1, Math.ceil(kuotaData.length / PAGE_SIZE));
@@ -124,11 +130,6 @@ export default function ManageKuota() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Manajemen Kuota</h1>
-        <p className="mt-1 text-sm text-slate-500">Atur kuota ketersediaan jadwal terapi per hari.</p>
-      </div>
-
       {error && <p className="text-sm text-red-500">{error}</p>}
       {message && <p className="text-sm text-emerald-600">{message}</p>}
 
@@ -162,12 +163,34 @@ export default function ManageKuota() {
         </Card>
 
         <Card className="lg:col-span-2 shadow-sm border-border">
-          <CardHeader>
-            <CardTitle>Daftar Pengaturan Kuota</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="border rounded-md">
-              <Table>
+        <CardHeader>
+          <CardTitle>Daftar Pengaturan Kuota</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <DateRangeFilter
+            embedded
+            from={dateFrom}
+            to={dateTo}
+            onFromChange={setDateFrom}
+            onToChange={setDateTo}
+            onApply={() => {
+              if (dateFrom && dateTo && dateTo < dateFrom) {
+                setError("Tanggal selesai tidak boleh lebih kecil dari tanggal mulai.");
+                return;
+              }
+              setError("");
+              void loadKuota(dateFrom, dateTo);
+            }}
+            onReset={() => {
+              setDateFrom("");
+              setDateTo("");
+              setError("");
+              void loadKuota("", "");
+            }}
+            isLoading={isLoading}
+          />
+          <div className="border rounded-md">
+            <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Tanggal</TableHead>

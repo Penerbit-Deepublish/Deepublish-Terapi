@@ -116,11 +116,6 @@ export default function AdminProfilePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Profile Admin</h1>
-        <p className="mt-1 text-sm text-slate-500">Perbarui informasi akun dan foto profil Anda.</p>
-      </div>
-
       {error && <p className="text-sm text-red-500">{error}</p>}
       {message && <p className="text-sm text-emerald-600">{message}</p>}
 

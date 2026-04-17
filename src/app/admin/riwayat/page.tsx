@@ -6,11 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, Filter, Trash2 } from "lucide-react";
+import { Search, Trash2 } from "lucide-react";
+import { DateRangeFilter } from "@/components/admin/date-range-filter";
 
 interface PesertaItem {
   id: string;
   nama_lengkap: string;
+  tanggal_terapi: string;
   departemen: string | null;
   status_kepesertaan: string | null;
   tanggal_lahir: string | null;
@@ -38,12 +40,16 @@ export default function RiwayatPeserta() {
   const [page, setPage] = useState(1);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
-  const loadData = useCallback(async (targetPage = page, q = searchTerm) => {
+  const loadData = useCallback(async (targetPage: number, q: string, from: string, to: string) => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams({ page: String(targetPage), pageSize: String(PAGE_SIZE) });
       if (q) params.set("q", q);
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
 
       const res = await fetch(`/api/admin/peserta?${params.toString()}`);
       const json = await res.json();
@@ -58,10 +64,10 @@ export default function RiwayatPeserta() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, searchTerm]);
+  }, []);
 
   useEffect(() => {
-    void loadData(1, "");
+    void loadData(1, "", "", "");
   }, [loadData]);
 
   const onDelete = async (id: string) => {
@@ -72,7 +78,7 @@ export default function RiwayatPeserta() {
       return;
     }
 
-    await loadData(page, searchTerm);
+    await loadData(page, searchTerm, dateFrom, dateTo);
   };
 
   const items = data?.items ?? [];
@@ -89,36 +95,54 @@ export default function RiwayatPeserta() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Riwayat Peserta</h1>
-          <p className="mt-1 text-sm text-slate-500">Data historis pasien dan status sesi terapi.</p>
-        </div>
-        <Button variant="outline"><Filter className="w-4 h-4 mr-2" /> Filter</Button>
-      </div>
-
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       <Card className="border-border shadow-sm">
         <CardContent className="p-0">
-          <div className="p-4 border-b flex gap-4">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cari nama, departemen, atau status..."
-                className="pl-9"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+          <div className="space-y-3 border-b p-4">
+            <DateRangeFilter
+              embedded
+              from={dateFrom}
+              to={dateTo}
+              onFromChange={setDateFrom}
+              onToChange={setDateTo}
+              onApply={() => {
+                if (dateFrom && dateTo && dateTo < dateFrom) {
+                  setError("Tanggal selesai tidak boleh lebih kecil dari tanggal mulai.");
+                  return;
+                }
+                setError("");
+                void loadData(1, searchTerm, dateFrom, dateTo);
+              }}
+              onReset={() => {
+                setDateFrom("");
+                setDateTo("");
+                setError("");
+                void loadData(1, searchTerm, "", "");
+              }}
+              isLoading={isLoading}
+            />
+
+            <div className="flex gap-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Cari nama, departemen, atau status..."
+                  className="pl-9"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <Button variant="outline" onClick={() => loadData(1, searchTerm, dateFrom, dateTo)}>Cari</Button>
             </div>
-            <Button variant="outline" onClick={() => loadData(1, searchTerm)}>Cari</Button>
           </div>
           <div className="border-t overflow-x-auto">
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow>
-                  <TableHead>Kode</TableHead>
+                  <TableHead>No</TableHead>
                   <TableHead>Nama Peserta</TableHead>
+                  <TableHead>Tanggal Terapi</TableHead>
                   <TableHead>Profil</TableHead>
                   <TableHead>Jam Kehadiran</TableHead>
                   <TableHead>Keluhan Luar</TableHead>
@@ -128,10 +152,13 @@ export default function RiwayatPeserta() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.length > 0 ? items.map((item) => (
+                {items.length > 0 ? items.map((item, idx) => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium text-muted-foreground">{item.id.slice(0, 8)}</TableCell>
+                    <TableCell className="font-medium text-muted-foreground">
+                      {(page - 1) * PAGE_SIZE + idx + 1}
+                    </TableCell>
                     <TableCell className="font-bold">{item.nama_lengkap}</TableCell>
+                    <TableCell>{item.tanggal_terapi}</TableCell>
                     <TableCell>
                       <div className="text-sm">{item.departemen || "-"}</div>
                       <div className="text-sm text-muted-foreground">{item.status_kepesertaan || "-"}</div>
@@ -175,7 +202,7 @@ export default function RiwayatPeserta() {
                   </TableRow>
                 )) : (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-6 text-muted-foreground">
                       Tidak ada data ditemukan
                     </TableCell>
                   </TableRow>
@@ -188,14 +215,14 @@ export default function RiwayatPeserta() {
               Halaman {page} dari {totalPages} • {PAGE_SIZE} data per halaman
             </p>
             <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => loadData(page - 1, searchTerm)}>
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => loadData(page - 1, searchTerm, dateFrom, dateTo)}>
               Previous
             </Button>
             <Button
               variant="outline"
               size="sm"
               disabled={page >= totalPages}
-              onClick={() => loadData(page + 1, searchTerm)}
+              onClick={() => loadData(page + 1, searchTerm, dateFrom, dateTo)}
             >
               Next
             </Button>

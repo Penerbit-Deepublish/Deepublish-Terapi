@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useState, type ComponentType } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowUpRight, Package, ShoppingCart, UsersRound, Activity } from "lucide-react";
+import { DateRangeFilter } from "@/components/admin/date-range-filter";
 import {
   Bar,
   BarChart,
@@ -79,32 +80,67 @@ export default function AdminDashboard() {
   const [error, setError] = useState("");
   const [isClient, setIsClient] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [dateFrom, setDateFrom] = useState(() => {
+    const now = new Date();
+    const start = new Date(now);
+    start.setDate(now.getDate() - 6);
+    return start.toISOString().slice(0, 10);
+  });
+  const [dateTo, setDateTo] = useState(() => new Date().toISOString().slice(0, 10));
+
+  const loadDashboard = useCallback(async (from: string, to: string) => {
+    setIsLoading(true);
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    const res = await fetch(`/api/admin/dashboard?${params.toString()}`);
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      setError(json.message || "Gagal memuat dashboard");
+      setIsLoading(false);
+      return;
+    }
+    setData(json.data);
+    setError("");
+    setIsLoading(false);
+  }, []);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsClient(true);
+    void loadDashboard(dateFrom, dateTo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadDashboard]);
 
-    const load = async () => {
-      setIsLoading(true);
-      const res = await fetch("/api/admin/dashboard");
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        setError(json.message || "Gagal memuat dashboard");
-        setIsLoading(false);
-        return;
-      }
-      setData(json.data);
-      setError("");
-      setIsLoading(false);
-    };
+  const applyFilter = async () => {
+    if (dateFrom && dateTo && dateTo < dateFrom) {
+      setError("Tanggal selesai tidak boleh lebih kecil dari tanggal mulai.");
+      return;
+    }
+    setError("");
+    await loadDashboard(dateFrom, dateTo);
+  };
 
-    void load();
-  }, []);
+  const resetFilter = async () => {
+    const now = new Date();
+    const start = new Date(now);
+    start.setDate(now.getDate() - 6);
+    const nextFrom = start.toISOString().slice(0, 10);
+    const nextTo = now.toISOString().slice(0, 10);
+    setDateFrom(nextFrom);
+    setDateTo(nextTo);
+    await loadDashboard(nextFrom, nextTo);
+  };
 
   const dailyData = data?.charts.tren_reservasi_harian ?? [];
   const sesiData = data?.charts.penggunaan_kuota_per_sesi ?? [];
+  const totalSesiAktif = sesiData.length;
   const totalBookingHariIni = sesiData.reduce((sum, item) => sum + item.terpakai, 0);
-  const totalSisaPerSesi = sesiData.reduce((sum, item) => sum + item.sisa, 0);
+  const sisaKuotaHariIni = data?.stats.sisa_kuota_hari_ini ?? 0;
+  const kuotaHarian = totalBookingHariIni + sisaKuotaHariIni;
+  const okupansiSesiPersen = kuotaHarian > 0
+    ? Math.round((totalBookingHariIni / kuotaHarian) * 100)
+    : 0;
 
   const lastTwoDays = dailyData.slice(-2);
   const yesterdayCount = lastTwoDays[0]?.total ?? 0;
@@ -120,11 +156,11 @@ export default function AdminDashboard() {
     .slice(0, 3)
     .map((item, idx) => {
       const colors = ["#185cab", "#3b82f6", "#6aa8e6"] as const;
-      const percent = totalBookingHariIni > 0 ? Math.round((item.terpakai / totalBookingHariIni) * 100) : 0;
+      const percent = kuotaHarian > 0 ? Math.round((item.terpakai / kuotaHarian) * 100) : 0;
       return {
         ...item,
         label: item.jam,
-        amount: `${item.terpakai}/${item.terpakai + item.sisa}`,
+        amount: `${item.terpakai}/${kuotaHarian}`,
         percent,
         color: colors[idx] ?? colors[2],
       };
@@ -144,21 +180,21 @@ export default function AdminDashboard() {
     {
       title: "Booking Hari Ini",
       value: `${totalBookingHariIni.toLocaleString("id-ID")}`,
-      note: "Total booking dari semua sesi hari ini",
-      delta: `${Number(growthPercent) >= 0 ? "+" : ""}${growthPercent}%`,
+      note: "Total booking dari semua sesi aktif",
+      delta: `+${okupansiSesiPersen}%`,
       icon: ShoppingCart,
     },
     {
       title: "Sisa Kuota Hari Ini",
-      value: `${(data?.stats.sisa_kuota_hari_ini ?? totalSisaPerSesi).toLocaleString("id-ID")}`,
-      note: "Kuota tersisa yang masih bisa dibooking",
-      delta: "+0.0%",
+      value: `${sisaKuotaHariIni.toLocaleString("id-ID")}`,
+      note: "Sisa slot dari data sesi hari ini",
+      delta: `+${Math.max(0, 100 - okupansiSesiPersen)}%`,
       icon: UsersRound,
     },
     {
       title: "Total Sesi Aktif",
-      value: `${(data?.stats.total_sesi_hari_ini ?? 0).toLocaleString("id-ID")}`,
-      note: "Jumlah sesi yang tersedia hari ini",
+      value: `${totalSesiAktif.toLocaleString("id-ID")}`,
+      note: "Jumlah sesi dari chart penggunaan kuota",
       delta: "+0.0%",
       icon: Activity,
     },
@@ -170,17 +206,28 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">DASHBOARD</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          {new Date().toLocaleDateString("id-ID", {
-            weekday: "long",
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-          })}
-        </p>
-      </div>
+      <p className="text-sm text-slate-500">
+        {new Date(dateTo || new Date().toISOString().slice(0, 10)).toLocaleDateString("id-ID", {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })}
+      </p>
+
+      <DateRangeFilter
+        from={dateFrom}
+        to={dateTo}
+        onFromChange={setDateFrom}
+        onToChange={setDateTo}
+        onApply={() => {
+          void applyFilter();
+        }}
+        onReset={() => {
+          void resetFilter();
+        }}
+        isLoading={isLoading}
+      />
 
       {error && <p className="text-sm font-medium text-red-500">{error}</p>}
 
@@ -213,14 +260,22 @@ export default function AdminDashboard() {
                       <span
                         className={
                           positive
-                            ? "rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-700"
+                            ? "rounded-full bg-[#1f9f63] px-2 py-1 text-[11px] font-semibold text-white"
                             : "rounded-full bg-red-100 px-2 py-1 text-[11px] font-semibold text-red-600"
                         }
                       >
                         {item.delta}
                       </span>
                     </div>
-                    <p className={item.tone === "primary" ? "text-xs text-white/80" : "text-xs text-slate-500"}>{item.title}</p>
+                    <p
+                      className={
+                        item.tone === "primary"
+                          ? "text-sm font-semibold text-white/90"
+                          : "text-sm font-semibold text-slate-700"
+                      }
+                    >
+                      {item.title}
+                    </p>
                     <p className={item.tone === "primary" ? "mt-1 text-3xl font-bold" : "mt-1 text-3xl font-bold text-slate-900"}>
                       {item.value}
                     </p>
@@ -241,7 +296,7 @@ export default function AdminDashboard() {
                 </div>
                 <button
                   type="button"
-                  className="rounded-lg border border-[#e6e9f5] bg-[#f8f9ff] px-3 py-1.5 text-xs font-medium text-slate-600"
+                  className="badge-neon-teal rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
                 >
                   7 hari
                 </button>
@@ -275,7 +330,7 @@ export default function AdminDashboard() {
                 </div>
                 <button
                   type="button"
-                  className="rounded-lg border border-[#e6e9f5] bg-[#f8f9ff] px-3 py-1.5 text-xs font-medium text-slate-600"
+                  className="badge-neon-teal rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
                 >
                   Hari ini
                 </button>
@@ -287,10 +342,14 @@ export default function AdminDashboard() {
                   <RingLayer size={174} value={topSessions[1]?.percent ?? 0} color={topSessions[1]?.color ?? "#3b82f6"} />
                   <RingLayer size={128} value={topSessions[2]?.percent ?? 0} color={topSessions[2]?.color ?? "#6aa8e6"} />
                   <div className="absolute inset-0 m-auto flex h-24 w-24 flex-col items-center justify-center rounded-full bg-white text-center shadow-sm">
-                    <p className="text-3xl font-bold text-slate-900">{totalBookingHariIni.toLocaleString("id-ID")}</p>
-                    <p className="text-[11px] text-slate-500">Booking Masuk</p>
-                    <span className="mt-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                      {`${Number(growthPercent) >= 0 ? "+" : ""}${growthPercent}%`}
+                    <p className="text-3xl font-bold text-slate-900">
+                      {totalBookingHariIni.toLocaleString("id-ID")}
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      Sisa kuota {sisaKuotaHariIni.toLocaleString("id-ID")}
+                    </p>
+                    <span className="mt-1 rounded-full bg-[#1f9f63] px-2 py-0.5 text-[10px] font-semibold text-white">
+                      Okupansi {okupansiSesiPersen}%
                     </span>
                   </div>
                 </div>
@@ -326,7 +385,7 @@ export default function AdminDashboard() {
                 </div>
                 <button
                   type="button"
-                  className="rounded-lg border border-[#e6e9f5] bg-[#f8f9ff] px-3 py-1.5 text-xs font-medium text-slate-600"
+                  className="badge-neon-teal rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
                 >
                   Real data
                 </button>

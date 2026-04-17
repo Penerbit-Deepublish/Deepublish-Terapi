@@ -29,6 +29,15 @@ const ADMIN_LINKS = [
   { href: "/admin/manage-kuota", label: "Manage Kuota", icon: CalendarDays, group: "Management" },
 ];
 
+const PAGE_TITLES: Record<string, string> = {
+  "/admin/dashboard": "DASHBOARD",
+  "/admin/riwayat": "RIWAYAT PESERTA",
+  "/admin/manage-jadwal": "MANAGE JADWAL",
+  "/admin/manage-kuota": "MANAGE KUOTA",
+  "/admin/profile": "PROFILE ADMIN",
+  "/admin/data-pengguna": "DATA PENGGUNA",
+};
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -91,6 +100,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (pathname === "/admin/login") {
     return <div className="min-h-screen bg-muted/20 flex flex-col">{children}</div>;
   }
+  const pageTitle = PAGE_TITLES[pathname] ?? "ADMIN PANEL";
 
   const groupedLinks = ADMIN_LINKS.reduce<Record<string, typeof ADMIN_LINKS>>((acc, link) => {
     if (!acc[link.group]) acc[link.group] = [];
@@ -103,25 +113,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="flex min-h-screen w-full flex-col bg-[#f2f4fb] lg:flex-row">
       {/* Mobile Header */}
       <div className="lg:hidden flex items-center justify-between p-4 bg-white/80 border-b border-[#dde2f2] sticky top-0 z-50 w-full">
-        <Link href="/admin/dashboard" className="flex items-center gap-3">
-          <Image
-            src={LogoLight}
-            alt="Logo Terapi"
-            width={32}
-            height={32}
-            priority
-            className="block dark:hidden"
-          />
-          <Image
-            src={LogoDark}
-            alt="Logo Terapi"
-            width={32}
-            height={32}
-            priority
-            className="hidden dark:block"
-          />
-          <span className="font-bold text-lg text-primary">Admin Panel</span>
-        </Link>
+        <p className="text-sm font-bold tracking-[0.06em] text-[#185cab]">{pageTitle}</p>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -273,7 +265,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
         <div className="mb-4 hidden items-center justify-between sm:mb-6 lg:flex">
-          <div />
+          <h1 className="text-2xl font-bold tracking-[0.08em] text-[#185cab]">{pageTitle}</h1>
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               type="button"

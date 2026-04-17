@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DateRangeFilter } from "@/components/admin/date-range-filter";
 
 interface JadwalTanggalItem {
   id: string;
@@ -15,6 +16,8 @@ interface JadwalTanggalItem {
   kuota_terpakai: number;
 }
 
+const PAGE_SIZE = 15;
+
 export default function ManageJadwalPage() {
   const [jadwal, setJadwal] = useState<JadwalTanggalItem[]>([]);
   const [tanggal, setTanggal] = useState("");
@@ -22,24 +25,31 @@ export default function ManageJadwalPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const loadJadwal = useCallback(async () => {
+  const loadJadwal = useCallback(async (from: string, to: string) => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/admin/kuota");
+      const params = new URLSearchParams();
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+      const res = await fetch(`/api/admin/kuota?${params.toString()}`);
       const json = await res.json();
       if (!res.ok || !json.success) {
         setError(json.message || "Gagal memuat jadwal");
         return;
       }
       setJadwal(json.data as JadwalTanggalItem[]);
+      setCurrentPage(1);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadJadwal();
+    void loadJadwal("", "");
   }, [loadJadwal]);
 
   const simpanTanggal = async () => {
@@ -63,8 +73,12 @@ export default function ManageJadwalPage() {
     }
 
     setMessage(`Jadwal tanggal ${tanggal} berhasil disimpan`);
-    await loadJadwal();
+    await loadJadwal(dateFrom, dateTo);
   };
+
+  const totalPages = Math.max(1, Math.ceil(jadwal.length / PAGE_SIZE));
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const paginatedJadwal = jadwal.slice(startIndex, startIndex + PAGE_SIZE);
 
   if (isLoading) {
     return (
@@ -78,13 +92,6 @@ export default function ManageJadwalPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Manage Jadwal Tanggal</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Tentukan tanggal jadwal yang aktif untuk pemesanan customer.
-        </p>
-      </div>
-
       {error && <p className="text-sm text-red-500">{error}</p>}
       {message && <p className="text-sm text-emerald-600">{message}</p>}
 
@@ -118,7 +125,29 @@ export default function ManageJadwalPage() {
         <CardHeader>
           <CardTitle>Daftar Jadwal Aktif</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <DateRangeFilter
+            embedded
+            from={dateFrom}
+            to={dateTo}
+            onFromChange={setDateFrom}
+            onToChange={setDateTo}
+            onApply={() => {
+              if (dateFrom && dateTo && dateTo < dateFrom) {
+                setError("Tanggal selesai tidak boleh lebih kecil dari tanggal mulai.");
+                return;
+              }
+              setError("");
+              void loadJadwal(dateFrom, dateTo);
+            }}
+            onReset={() => {
+              setDateFrom("");
+              setDateTo("");
+              setError("");
+              void loadJadwal("", "");
+            }}
+            isLoading={isLoading}
+          />
           <div className="border rounded-md">
             <Table>
               <TableHeader>
@@ -130,7 +159,7 @@ export default function ManageJadwalPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {jadwal.map((item) => {
+                {paginatedJadwal.length > 0 ? paginatedJadwal.map((item) => {
                   const sisa = Math.max(0, item.kuota_max - item.kuota_terpakai);
                   return (
                     <TableRow key={item.id}>
@@ -140,9 +169,38 @@ export default function ManageJadwalPage() {
                       <TableCell>{sisa}</TableCell>
                     </TableRow>
                   );
-                })}
+                }) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                      Tidak ada data jadwal
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              Halaman {currentPage} dari {totalPages} • {PAGE_SIZE} data per halaman
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+              >
+                Next
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

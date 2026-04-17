@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { getAdminFromRequest } from "@/app/api/_utils/auth";
 import { fail, ok } from "@/app/api/_utils/http";
 import { getDashboardData } from "@/lib/services/admin";
+import { adminDateRangeQuerySchema } from "@/lib/validators/admin";
 
 function getEmptyDashboard() {
   return {
@@ -35,10 +36,22 @@ export async function GET(req: NextRequest) {
   const admin = getAdminFromRequest(req);
   if (!admin) return fail("Unauthorized", 401);
 
+  const query = {
+    from: req.nextUrl.searchParams.get("from") ?? undefined,
+    to: req.nextUrl.searchParams.get("to") ?? undefined,
+  };
+  const parsed = adminDateRangeQuerySchema.safeParse(query);
+  if (!parsed.success) {
+    return fail("Invalid query", 422, parsed.error.flatten());
+  }
+
   try {
-    const data = await getDashboardData();
+    const data = await getDashboardData(parsed.data);
     return ok(data);
   } catch (error) {
+    if (error instanceof Error && error.message === "INVALID_DATE_RANGE") {
+      return fail("Invalid date range", 422);
+    }
     if (isMissingTableError(error)) {
       return ok(getEmptyDashboard());
     }

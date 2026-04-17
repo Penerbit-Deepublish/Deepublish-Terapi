@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Search, Plus, Pencil, Trash2, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { DateRangeFilter } from "@/components/admin/date-range-filter";
 
 interface PenggunaItem {
   id: string;
@@ -38,8 +39,10 @@ export default function DataPenggunaPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [activeEmail, setActiveEmail] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
-  const loadData = useCallback(async (targetPage = page, q = searchTerm) => {
+  const loadData = useCallback(async (targetPage: number, q: string, from: string, to: string) => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams({
@@ -47,6 +50,8 @@ export default function DataPenggunaPage() {
         pageSize: String(PAGE_SIZE),
       });
       if (q) params.set("q", q);
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
 
       const res = await fetch(`/api/admin/pengguna?${params.toString()}`);
       const json = await res.json();
@@ -61,10 +66,10 @@ export default function DataPenggunaPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, searchTerm]);
+  }, []);
 
   useEffect(() => {
-    void loadData(1, "");
+    void loadData(1, "", "", "");
   }, [loadData]);
 
   useEffect(() => {
@@ -142,7 +147,7 @@ export default function DataPenggunaPage() {
 
       setSuccess(editing ? "Pengguna berhasil diperbarui" : "Pengguna berhasil ditambahkan");
       resetForm();
-      await loadData(page, searchTerm);
+      await loadData(page, searchTerm, dateFrom, dateTo);
     } finally {
       setIsSubmitting(false);
     }
@@ -163,7 +168,7 @@ export default function DataPenggunaPage() {
     }
 
     setSuccess("Pengguna berhasil dihapus");
-    await loadData(page, searchTerm);
+    await loadData(page, searchTerm, dateFrom, dateTo);
   };
 
   const items = data?.items ?? [];
@@ -182,11 +187,7 @@ export default function DataPenggunaPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Data Pengguna</h1>
-          <p className="mt-1 text-sm text-slate-500">Kelola akun admin yang dapat mengakses halaman admin.</p>
-        </div>
+      <div className="flex justify-end">
         <Button onClick={openCreate}>
           <Plus className="w-4 h-4 mr-2" /> Tambah Pengguna
         </Button>
@@ -242,17 +243,42 @@ export default function DataPenggunaPage() {
 
       <Card className="border-border shadow-sm">
         <CardContent className="p-0">
-          <div className="p-4 border-b flex gap-4">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cari email pengguna..."
-                className="pl-9"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+          <div className="space-y-3 border-b p-4">
+            <DateRangeFilter
+              embedded
+              from={dateFrom}
+              to={dateTo}
+              onFromChange={setDateFrom}
+              onToChange={setDateTo}
+              onApply={() => {
+                if (dateFrom && dateTo && dateTo < dateFrom) {
+                  setError("Tanggal selesai tidak boleh lebih kecil dari tanggal mulai.");
+                  return;
+                }
+                setError("");
+                void loadData(1, searchTerm, dateFrom, dateTo);
+              }}
+              onReset={() => {
+                setDateFrom("");
+                setDateTo("");
+                setError("");
+                void loadData(1, searchTerm, "", "");
+              }}
+              isLoading={isLoading}
+            />
+
+            <div className="flex gap-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Cari email pengguna..."
+                  className="pl-9"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <Button variant="outline" onClick={() => loadData(1, searchTerm, dateFrom, dateTo)}>Cari</Button>
             </div>
-            <Button variant="outline" onClick={() => loadData(1, searchTerm)}>Cari</Button>
           </div>
 
           <div className="border-t overflow-x-auto">
@@ -309,14 +335,14 @@ export default function DataPenggunaPage() {
               Total {totalData} pengguna • Halaman {page} dari {totalPages}
             </p>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => loadData(page - 1, searchTerm)}>
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => loadData(page - 1, searchTerm, dateFrom, dateTo)}>
                 Previous
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 disabled={page >= totalPages}
-                onClick={() => loadData(page + 1, searchTerm)}
+                onClick={() => loadData(page + 1, searchTerm, dateFrom, dateTo)}
               >
                 Next
               </Button>
