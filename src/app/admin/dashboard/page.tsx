@@ -8,6 +8,9 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -36,24 +39,6 @@ type MetricCard = {
 };
 
 const MAX_PER_SESI = 3;
-
-function RingLayer({ size, value, color }: { size: number; value: number; color: string }) {
-  return (
-    <div
-      className="absolute inset-0 m-auto rounded-full"
-      style={{
-        width: size,
-        height: size,
-        background: `conic-gradient(${color} ${value}%, #d9deee 0%)`,
-      }}
-    >
-      <div
-        className="absolute inset-0 m-auto rounded-full bg-[#f4f6fd]"
-        style={{ width: size - 16, height: size - 16 }}
-      />
-    </div>
-  );
-}
 
 function DashboardSkeleton() {
   return (
@@ -153,19 +138,19 @@ export default function AdminDashboard() {
       ? "100.0"
       : "0.0";
 
-  const topSessions = [...sesiData]
-    .sort((a, b) => b.terpakai - a.terpakai)
-    .slice(0, 3)
+  const sessionColors = ["#185cab", "#3b82f6", "#6aa8e6", "#1f9f63", "#ef4444", "#f59e0b"] as const;
+  const sessionStats = [...sesiData]
+    .sort((a, b) => a.jam.localeCompare(b.jam))
     .map((item, idx) => {
-      const colors = ["#185cab", "#3b82f6", "#6aa8e6"] as const;
       const terpakaiPerSesi = Math.min(item.terpakai, MAX_PER_SESI);
       const percent = Math.round((terpakaiPerSesi / MAX_PER_SESI) * 100);
       return {
         ...item,
         label: item.jam,
+        terpakaiPerSesi,
         amount: `${terpakaiPerSesi}/${MAX_PER_SESI}`,
         percent,
-        color: colors[idx] ?? colors[2],
+        color: sessionColors[idx % sessionColors.length],
       };
     });
 
@@ -339,27 +324,57 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
-              <div className="mx-auto mb-6 flex h-[235px] w-full max-w-[235px] items-center justify-center">
-                <div className="relative h-[220px] w-[220px]">
-                  <RingLayer size={220} value={topSessions[0]?.percent ?? 0} color={topSessions[0]?.color ?? "#185cab"} />
-                  <RingLayer size={174} value={topSessions[1]?.percent ?? 0} color={topSessions[1]?.color ?? "#3b82f6"} />
-                  <RingLayer size={128} value={topSessions[2]?.percent ?? 0} color={topSessions[2]?.color ?? "#6aa8e6"} />
-                  <div className="absolute inset-0 m-auto flex h-24 w-24 flex-col items-center justify-center rounded-full bg-white text-center shadow-sm">
-                    <p className="text-3xl font-bold text-slate-900">
-                      {totalBookingHariIni.toLocaleString("id-ID")}
-                    </p>
-                    <p className="text-[11px] text-slate-500">
-                      Sisa kuota {sisaKuotaHariIni.toLocaleString("id-ID")}
-                    </p>
-                    <span className="mt-1 rounded-full bg-[#1f9f63] px-2 py-0.5 text-[10px] font-semibold text-white">
-                      Okupansi {okupansiSesiPersen}%
-                    </span>
-                  </div>
+              <div className="mb-5 rounded-2xl bg-[#f7f8fd] p-3">
+                <div className="mb-2 flex items-center justify-between px-1">
+                  <p className="text-sm font-semibold text-slate-700">
+                    Total booking {totalBookingHariIni.toLocaleString("id-ID")}
+                  </p>
+                  <span className="rounded-full bg-[#1f9f63] px-2 py-0.5 text-[10px] font-semibold text-white">
+                    Okupansi {okupansiSesiPersen}%
+                  </span>
                 </div>
+                <div className="h-[185px]">
+                  {isClient ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={sessionStats}
+                          dataKey="terpakaiPerSesi"
+                          nameKey="label"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={42}
+                          outerRadius={74}
+                          paddingAngle={2}
+                          strokeWidth={0}
+                        >
+                          {sessionStats.map((item) => (
+                            <Cell key={item.label} fill={item.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value) => [`${value}/${MAX_PER_SESI}`, "Terpakai"]}
+                          labelFormatter={(label) => `Sesi ${label}`}
+                        />
+                        <text x="50%" y="48%" textAnchor="middle" className="fill-slate-900 text-[15px] font-bold">
+                          {totalBookingHariIni}
+                        </text>
+                        <text x="50%" y="58%" textAnchor="middle" className="fill-slate-500 text-[10px]">
+                          booking
+                        </text>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full rounded-md bg-muted/40" />
+                  )}
+                </div>
+                <p className="mt-1 px-1 text-[11px] text-slate-500">
+                  Sisa kuota {sisaKuotaHariIni.toLocaleString("id-ID")} dari total kapasitas sesi hari ini
+                </p>
               </div>
 
-              <div className="space-y-2">
-                {topSessions.length > 0 ? topSessions.map((item) => (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {sessionStats.length > 0 ? sessionStats.map((item) => (
                   <div key={item.label} className="flex items-center justify-between rounded-xl bg-[#f7f8fd] px-3 py-2">
                     <div className="flex items-center gap-2">
                       <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />

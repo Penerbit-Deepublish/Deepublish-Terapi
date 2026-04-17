@@ -24,7 +24,6 @@ import {
 const OTHER_OPTION = "Yang lain";
 
 const KELUHAN_LUAR_OPTIONS = [
-  "Stroke",
   "Sakit Gigi",
   "Pusing berulang/menahun",
   "Sakit Syaraf",
@@ -125,6 +124,9 @@ export function BookingForm() {
     useWatch({ control: form.control, name: "keluhanDalam" }) ?? [];
   const selectedTanggalSesi =
     useWatch({ control: form.control, name: "tanggalSesi" }) ?? "";
+  const tersediaTanggal = availableDates.filter((item) => item.sisa > 0);
+  const isAllQuotaFull = availableDates.length > 0 && tersediaTanggal.length === 0;
+  const isReservationDisabled = isAllQuotaFull;
 
   const loadDates = useCallback(async () => {
     setIsLoadingDates(true);
@@ -236,8 +238,7 @@ export function BookingForm() {
               kuota_terpakai: kuotaTerpakai,
               sisa,
             };
-          })
-          .filter((item) => item.sisa > 0),
+          }),
       );
       setIsSuccess(true);
     } catch {
@@ -279,7 +280,15 @@ export function BookingForm() {
   }
 
   return (
-    <div className="w-full max-w-3xl mx-auto bg-card rounded-3xl shadow-xl overflow-hidden border border-border">
+    <div className="relative w-full max-w-3xl mx-auto bg-card rounded-3xl shadow-xl overflow-hidden border border-border">
+      {isReservationDisabled && (
+        <>
+          <div className="pointer-events-none absolute inset-0 z-20 bg-slate-100/55 backdrop-blur-[1px]" />
+          <div className="pointer-events-none absolute -left-20 top-10 z-30 w-[150%] -rotate-12 bg-[#d62828] py-2 text-center text-sm font-extrabold tracking-[0.2em] text-white shadow-lg">
+            KUOTA PENUH
+          </div>
+        </>
+      )}
       <div className="bg-primary/5 p-6 md:p-8 border-b border-border text-center md:text-left">
         <h2 className="text-2xl md:text-3xl font-bold text-primary mb-2">
           Form Pendaftaran Terapi Deepublish
@@ -287,7 +296,14 @@ export function BookingForm() {
         <p className="text-muted-foreground">Silakan lengkapi data di bawah ini.</p>
       </div>
 
+      {isReservationDisabled && (
+        <p className="mx-6 mt-6 rounded-xl border border-[#d62828]/30 bg-[#fff1f1] px-4 py-3 text-sm font-semibold text-[#b42318] md:mx-8">
+          Seluruh kuota pada tanggal yang tersedia sudah penuh. Form reservasi dinonaktifkan sementara.
+        </p>
+      )}
+
       <form onSubmit={form.handleSubmit(onSubmit)} className="p-6 md:p-8 space-y-8">
+        <fieldset disabled={isReservationDisabled} className={cn(isReservationDisabled && "pointer-events-none opacity-80")}>
         <div className="space-y-3">
           <Label>Nama Lengkap</Label>
           <Input
@@ -567,6 +583,10 @@ export function BookingForm() {
                   <p className="text-sm text-muted-foreground">
                     Belum ada jadwal aktif dari admin. Silakan pilih tanggal lain nanti.
                   </p>
+                ) : tersediaTanggal.length === 0 ? (
+                  <p className="text-sm font-semibold text-amber-700">
+                    Semua kuota pada tanggal aktif sudah penuh.
+                  </p>
                 ) : (
                   <div className="space-y-2">
                     <Select value={field.value ?? ""} onValueChange={field.onChange}>
@@ -589,12 +609,13 @@ export function BookingForm() {
                             <SelectItem
                               key={item.tanggal}
                               value={item.tanggal}
+                              disabled={item.sisa <= 0}
                               className="rounded-lg px-3 py-2.5 data-[highlighted]:bg-[#185cab]/10"
                             >
                               <span className="flex flex-col items-start gap-0.5 pr-6">
                                 <span className="font-medium text-foreground">{item.tanggal}</span>
-                                <span className="text-[11px] font-semibold text-[#185cab]">
-                                  Sisa kuota {item.sisa}
+                                <span className={cn("text-[11px] font-semibold", item.sisa > 0 ? "text-[#185cab]" : "text-red-500")}>
+                                  {item.sisa > 0 ? `Sisa kuota ${item.sisa}` : "Kuota penuh"}
                                 </span>
                               </span>
                             </SelectItem>
@@ -709,7 +730,7 @@ export function BookingForm() {
           <Button
             type="submit"
             className="w-full py-6 text-lg rounded-2xl shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all active:scale-[0.98]"
-            disabled={form.formState.isSubmitting}
+            disabled={form.formState.isSubmitting || isReservationDisabled}
           >
             {form.formState.isSubmitting ? (
               <>
@@ -724,6 +745,7 @@ export function BookingForm() {
             <p className="mt-2 rounded-lg bg-red-50 p-3 text-sm font-medium text-red-600">{submitError}</p>
           )}
         </div>
+        </fieldset>
       </form>
     </div>
   );

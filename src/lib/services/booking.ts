@@ -182,8 +182,7 @@ export async function getBookingDateAvailability(): Promise<BookingDateAvailabil
         kuota_terpakai: kuotaTerpakai,
         sisa: Math.max(0, item.kuotaMax - kuotaTerpakai),
       };
-    })
-    .filter((item) => item.sisa > 0);
+    });
 }
 
 export async function createBooking(input: BookingApiInput) {
