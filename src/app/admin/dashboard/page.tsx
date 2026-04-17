@@ -35,6 +35,8 @@ type MetricCard = {
   icon: ComponentType<{ className?: string }>;
 };
 
+const MAX_PER_SESI = 3;
+
 function RingLayer({ size, value, color }: { size: number; value: number; color: string }) {
   return (
     <div
@@ -136,8 +138,8 @@ export default function AdminDashboard() {
   const sesiData = data?.charts.penggunaan_kuota_per_sesi ?? [];
   const totalSesiAktif = sesiData.length;
   const totalBookingHariIni = sesiData.reduce((sum, item) => sum + item.terpakai, 0);
-  const sisaKuotaHariIni = data?.stats.sisa_kuota_hari_ini ?? 0;
-  const kuotaHarian = totalBookingHariIni + sisaKuotaHariIni;
+  const kuotaHarian = totalSesiAktif * MAX_PER_SESI;
+  const sisaKuotaHariIni = Math.max(0, kuotaHarian - totalBookingHariIni);
   const okupansiSesiPersen = kuotaHarian > 0
     ? Math.round((totalBookingHariIni / kuotaHarian) * 100)
     : 0;
@@ -156,11 +158,12 @@ export default function AdminDashboard() {
     .slice(0, 3)
     .map((item, idx) => {
       const colors = ["#185cab", "#3b82f6", "#6aa8e6"] as const;
-      const percent = kuotaHarian > 0 ? Math.round((item.terpakai / kuotaHarian) * 100) : 0;
+      const terpakaiPerSesi = Math.min(item.terpakai, MAX_PER_SESI);
+      const percent = Math.round((terpakaiPerSesi / MAX_PER_SESI) * 100);
       return {
         ...item,
         label: item.jam,
-        amount: `${item.terpakai}/${kuotaHarian}`,
+        amount: `${terpakaiPerSesi}/${MAX_PER_SESI}`,
         percent,
         color: colors[idx] ?? colors[2],
       };

@@ -13,6 +13,7 @@ import { Lock, User } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import LogoLight from "@/app/2.png";
+import LoginBackground from "@/app/login.png";
 
 const loginSchema = z.object({
   email: z.string().email("Email tidak valid"),
@@ -59,14 +60,24 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center p-4">
-      <motion.div 
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden p-4 md:justify-end md:p-8 lg:p-12">
+      <Image
+        src={LoginBackground}
+        alt="Background login"
+        fill
+        priority
+        className="object-cover"
+      />
+      <div className="absolute inset-0 bg-[#0b1b33]/35" />
+      <div className="absolute right-0 bottom-0 h-24 w-44 bg-[#0b1b33]/92 md:h-28 md:w-52" />
+
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-card p-8 rounded-3xl shadow-2xl border border-border"
+        className="relative z-10 w-full max-w-xl rounded-3xl border border-white/40 bg-white/92 p-8 shadow-2xl backdrop-blur-sm md:mr-12 md:p-10 lg:mr-20"
       >
-        <div className="text-center mb-8">
-          <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
             <Image
               src={LogoLight}
               alt="Logo Terapi Bio Elektrik Deepublish"
@@ -76,7 +87,7 @@ export default function AdminLogin() {
               className="object-contain"
             />
           </div>
-          <h1 className="text-2xl font-bold text-primary">Login Admin</h1>
+          <h1 className="text-3xl font-bold text-primary">Login Admin</h1>
           <p className="text-muted-foreground mt-2">Masuk ke panel manajemen Terapi</p>
         </div>
 
