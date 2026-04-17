@@ -1,32 +1,38 @@
 import Image from "next/image";
 import LogoLight from "@/app/2.png";
 import LogoDark from "@/app/3.png";
-import { MapPin, Phone, Mail, Clock, HeartPulse } from "lucide-react";
+import { MapPin, Phone, Clock, HeartPulse, Globe, LocateFixed } from "lucide-react";
 
 const CONTACT_ITEMS = [
   {
     icon: MapPin,
     label: "Alamat",
-    value: "Jl. Wonosari Km. 6, Depok, Yogyakarta",
-    href: "https://maps.google.com",
-  },
-  {
-    icon: Phone,
-    label: "Telepon",
-    value: "+62 274 XXX XXX",
-    href: "tel:+62274xxxxxx",
-  },
-  {
-    icon: Mail,
-    label: "Email",
-    value: "terapi@deepublish.co.id",
-    href: "mailto:terapi@deepublish.co.id",
+    value: "Jl. Rajawali Gg. Elang 6 No.3, Drono, Sardonoharjo, Kec. Ngaglik, Kabupaten Sleman, Daerah Istimewa Yogyakarta 55581",
+    href: "https://maps.google.com/?q=Jl.+Rajawali+Gg.+Elang+6+No.3,+Drono,+Sardonoharjo,+Ngaglik,+Sleman,+Yogyakarta+55581",
   },
   {
     icon: Clock,
     label: "Jam Operasional",
-    value: "Senin – Jumat, 09.00 – 16.00 WIB",
+    value: "Buka · Tutup pukul 17.00",
     href: null,
+  },
+  {
+    icon: Globe,
+    label: "Website",
+    value: "penerbitdeepublish.com",
+    href: "https://penerbitdeepublish.com",
+  },
+  {
+    icon: Phone,
+    label: "Telepon",
+    value: "(0274) 4533427",
+    href: "tel:+622744533427",
+  },
+  {
+    icon: LocateFixed,
+    label: "Kode Lokasi",
+    value: "79HV+6J Sardonoharjo, Kabupaten Sleman, Daerah Istimewa Yogyakarta",
+    href: "https://maps.google.com/?q=79HV%2B6J+Sardonoharjo,+Kabupaten+Sleman,+Daerah+Istimewa+Yogyakarta",
   },
 ];
 

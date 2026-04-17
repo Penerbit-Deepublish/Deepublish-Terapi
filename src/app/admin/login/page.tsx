@@ -4,12 +4,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Lock, User } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import LogoLight from "@/app/2.png";
 
 const loginSchema = z.object({
   email: z.string().email("Email tidak valid"),
@@ -64,7 +66,14 @@ export default function AdminLogin() {
       >
         <div className="text-center mb-8">
           <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-            <Lock className="w-8 h-8 text-primary" />
+            <Image
+              src={LogoLight}
+              alt="Logo Terapi Bio Elektrik Deepublish"
+              width={40}
+              height={40}
+              priority
+              className="object-contain"
+            />
           </div>
           <h1 className="text-2xl font-bold text-primary">Login Admin</h1>
           <p className="text-muted-foreground mt-2">Masuk ke panel manajemen Terapi</p>
@@ -104,6 +113,15 @@ export default function AdminLogin() {
             Login
           </Button>
         </form>
+
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => router.push("/")}
+          className="w-full mt-4 py-6 text-base rounded-xl"
+        >
+          Kembali ke Beranda
+        </Button>
       </motion.div>
     </div>
   );

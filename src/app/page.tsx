@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { Menu, X } from "lucide-react";
 import LogoLight from "./2.png";
 import LogoDark from "./3.png";
 import { BookingForm } from "@/features/booking/BookingForm";
@@ -11,10 +12,11 @@ import { Footer } from "@/components/Footer";
 
 function Navbar() {
   const [scrolled, setScrolled] = useState(false);
-  const [prevY, setPrevY] = useState(0);
   const [hidden, setHidden] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
+    let prevY = 0;
     const handleScroll = () => {
       const currentY = window.scrollY;
       setScrolled(currentY > 60);
@@ -24,29 +26,36 @@ function Navbar() {
       } else {
         setHidden(false);
       }
-      setPrevY(currentY);
+      prevY = currentY;
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [prevY]);
+  }, []);
+
+  useEffect(() => {
+    document.body.style.overflow = isMobileMenuOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMobileMenuOpen]);
 
   return (
     <motion.nav
       animate={{ y: hidden ? "-110%" : "0%" }}
       transition={{ duration: 0.35, ease: "easeInOut" }}
-      className="fixed top-4 left-0 right-0 z-50 transition-all duration-300 px-4 sm:px-6 lg:px-8"
+      className="fixed top-3 left-0 right-0 z-50 transition-all duration-300 px-3 sm:top-4 sm:px-6 lg:px-8"
     >
       <div
-        className={`mx-auto w-[92%] md:w-[70%] rounded-full border border-white/50 backdrop-blur-md transition-all duration-300 ${
+        className={`mx-auto w-full max-w-6xl rounded-3xl border border-white/50 backdrop-blur-md transition-all duration-300 ${
           scrolled
             ? "bg-white/78 shadow-lg"
             : "bg-white/65 shadow-md"
         }`}
       >
-        <div className="flex items-center justify-between h-20 px-6">
+        <div className="flex items-center justify-between h-16 px-4 sm:h-20 sm:px-6">
           {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="relative w-11 h-11">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <div className="relative h-9 w-9 shrink-0 sm:h-11 sm:w-11">
               <Image
                 src={LogoLight}
                 alt="Logo Terapi Bio Elektrik Deepublish"
@@ -64,13 +73,13 @@ function Navbar() {
                 className="hidden dark:block object-contain"
               />
             </div>
-            <span className="font-bold text-xl md:text-2xl text-primary">
+            <span className="truncate font-bold text-base text-primary sm:text-xl md:text-2xl">
               Terapi Deepublish
             </span>
           </div>
 
-          {/* Nav Links */}
-          <div className="flex items-center gap-2">
+          {/* Desktop/Tablet Nav */}
+          <div className="hidden items-center gap-2 sm:flex">
             <a
               href="#form-reservasi"
               className="px-5 py-2.5 rounded-xl text-base font-semibold text-primary hover:bg-primary/10 transition-all duration-200"
@@ -84,7 +93,41 @@ function Navbar() {
               Admin Login
             </a>
           </div>
+
+          {/* Mobile Toggle */}
+          <button
+            type="button"
+            aria-label={isMobileMenuOpen ? "Tutup menu navigasi" : "Buka menu navigasi"}
+            aria-expanded={isMobileMenuOpen}
+            aria-controls="mobile-navbar-menu"
+            onClick={() => setIsMobileMenuOpen((open) => !open)}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-primary/20 text-primary transition-colors hover:bg-primary/10 sm:hidden"
+          >
+            {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
+
+        {/* Mobile Nav */}
+        {isMobileMenuOpen && (
+          <div id="mobile-navbar-menu" className="border-t border-primary/10 px-4 pb-4 pt-2 sm:hidden">
+            <div className="flex flex-col gap-2">
+              <a
+                href="#form-reservasi"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="rounded-xl px-4 py-3 text-center text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
+              >
+                Reservasi
+              </a>
+              <a
+                href="/admin/login"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="rounded-xl bg-secondary px-4 py-3 text-center text-sm font-semibold text-secondary-foreground transition-all duration-200 hover:brightness-95"
+              >
+                Admin Login
+              </a>
+            </div>
+          </div>
+        )}
       </div>
     </motion.nav>
   );
