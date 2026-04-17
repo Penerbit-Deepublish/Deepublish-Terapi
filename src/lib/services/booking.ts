@@ -10,12 +10,48 @@ export interface SessionAvailability {
   tersedia: boolean;
 }
 
+export interface BookingDateAvailability {
+  tanggal: string;
+  kuota_max: number;
+  kuota_terpakai: number;
+  sisa: number;
+}
+
 interface QuotaSnapshot {
   id?: string;
   tanggal: string;
   kuota_max: number;
   kuota_terpakai: number;
   sisa: number;
+}
+
+const DEFAULT_SESSION_TIMES = [
+  "09:00 - 10:00",
+  "10:00 - 11:00",
+  "11:00 - 12:00",
+  "13:00 - 14:00",
+  "14:00 - 15:00",
+  "15:00 - 16:00",
+] as const;
+
+const MAX_BOOKING_PER_SESSION = 3;
+const DEFAULT_SESSION_CAPACITY = MAX_BOOKING_PER_SESSION;
+
+function normalizeJam(value: string) {
+  return value.replaceAll(".", ":").replace(/\s*-\s*/g, " - ").trim();
+}
+
+async function ensureDefaultSessions() {
+  const existing = await prisma.sesi.findMany({ select: { jam: true } });
+  const normalizedExisting = new Set(existing.map((item) => normalizeJam(item.jam)));
+  const missing = DEFAULT_SESSION_TIMES.filter((jam) => !normalizedExisting.has(normalizeJam(jam)));
+
+  if (missing.length === 0) return;
+
+  await prisma.sesi.createMany({
+    data: missing.map((jam) => ({ jam, kapasitas: DEFAULT_SESSION_CAPACITY })),
+    skipDuplicates: true,
+  });
 }
 
 async function getQuotaSnapshotsForRange(from: Date, to: Date): Promise<QuotaSnapshot[]> {
@@ -82,10 +118,9 @@ export async function getQuotaByRange(dateFrom: string, dateTo: string) {
 
 export async function getSesiAvailability(dateString: string): Promise<SessionAvailability[]> {
   const tanggal = parseDateOnly(dateString);
-  const today = startOfTodayUtc();
+  await ensureDefaultSessions();
 
-  const [quota, sessions, bookings] = await Promise.all([
-    prisma.kuota.findUnique({ where: { tanggal } }),
+  const [sessions, bookings] = await Promise.all([
     prisma.sesi.findMany({ orderBy: { jam: "asc" } }),
     prisma.terapi.findMany({
       where: { tanggalTerapi: tanggal },
@@ -98,29 +133,63 @@ export async function getSesiAvailability(dateString: string): Promise<SessionAv
     return acc;
   }, {});
 
-  const totalBooked = bookings.length;
-  const fallbackQuota = sessions.reduce((sum, item) => sum + item.kapasitas, 0);
-  const quotaMax = quota?.kuotaMax ?? fallbackQuota;
-  const quotaTerpakai = totalBooked;
-  const quotaAvailable = Math.max(0, quotaMax - quotaTerpakai);
-  const isPastDate = tanggal < today;
-
   return sessions.map((s) => {
     const terisiTanggal = bookedMap[s.id] ?? 0;
-    const slotSisa = Math.max(0, s.kapasitas - terisiTanggal);
 
     return {
       id: s.id,
       jam: s.jam,
-      kapasitas: s.kapasitas,
+      kapasitas: MAX_BOOKING_PER_SESSION,
       terisi: terisiTanggal,
-      tersedia: !isPastDate && quotaAvailable > 0 && slotSisa > 0,
+      tersedia: terisiTanggal < MAX_BOOKING_PER_SESSION,
     };
   });
 }
 
+export async function getBookingDateAvailability(): Promise<BookingDateAvailability[]> {
+  const today = startOfTodayUtc();
+  const rows = await prisma.kuota.findMany({
+    where: { tanggal: { gte: today } },
+    orderBy: { tanggal: "asc" },
+    take: 180,
+    select: { tanggal: true, kuotaMax: true },
+  });
+
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const from = rows[0].tanggal;
+  const to = rows[rows.length - 1].tanggal;
+
+  const bookingsByDate = await prisma.terapi.groupBy({
+    by: ["tanggalTerapi"],
+    where: { tanggalTerapi: { gte: from, lte: to } },
+    _count: { _all: true },
+  });
+
+  const bookedMap = new Map(
+    bookingsByDate.map((item) => [formatDateOnly(item.tanggalTerapi), item._count._all] as const),
+  );
+
+  return rows
+    .map((item) => {
+      const tanggalKey = formatDateOnly(item.tanggal);
+      const kuotaTerpakai = bookedMap.get(tanggalKey) ?? 0;
+      return {
+        tanggal: tanggalKey,
+        kuota_max: item.kuotaMax,
+        kuota_terpakai: kuotaTerpakai,
+        sisa: Math.max(0, item.kuotaMax - kuotaTerpakai),
+      };
+    })
+    .filter((item) => item.sisa > 0);
+}
+
 export async function createBooking(input: BookingApiInput) {
-  const tanggal = parseDateOnly(process.env.DEFAULT_TANGGAL_TERAPI ?? formatDateOnly(startOfTodayUtc()));
+  const tanggal = parseDateOnly(
+    input.tanggal_terapi ?? process.env.DEFAULT_TANGGAL_TERAPI ?? formatDateOnly(startOfTodayUtc()),
+  );
   const tanggalLahir = parseDateOnly(input.tanggal_lahir);
   const lokasiTerapi =
     input.lokasi_terapi?.trim() ||
@@ -128,10 +197,9 @@ export async function createBooking(input: BookingApiInput) {
     "Klinik Utama Bio Elektrik Deepublish";
 
   return prisma.$transaction(async (tx) => {
-    const [session, existingQuota, totalSessionsCapacity, sessionBookings, dailyBookings] = await Promise.all([
+    const [session, existingQuota, sessionBookings, dailyBookings] = await Promise.all([
       tx.sesi.findUnique({ where: { id: input.sesi_id } }),
       tx.kuota.findUnique({ where: { tanggal } }),
-      tx.sesi.aggregate({ _sum: { kapasitas: true } }),
       tx.terapi.count({
         where: {
           tanggalTerapi: tanggal,
@@ -149,16 +217,15 @@ export async function createBooking(input: BookingApiInput) {
       throw new Error("SESI_NOT_FOUND");
     }
 
-    if (sessionBookings >= session.kapasitas) {
+    if (sessionBookings >= MAX_BOOKING_PER_SESSION) {
       throw new Error("SESI_FULL");
     }
 
-    const fallbackMax = totalSessionsCapacity._sum.kapasitas || 0;
-    const quotaMax = existingQuota?.kuotaMax ?? fallbackMax;
+    const quotaMax = existingQuota?.kuotaMax ?? 0;
     const quotaTerpakai = dailyBookings;
 
-    if (quotaMax <= 0 || quotaTerpakai >= quotaMax) {
-      throw new Error("QUOTA_FULL");
+    if (!existingQuota) {
+      throw new Error("SCHEDULE_NOT_FOUND");
     }
 
     const booking = await tx.terapi.create({

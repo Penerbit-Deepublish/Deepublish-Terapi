@@ -15,6 +15,10 @@ export const bookingFormSchema = z.object({
   keluhanLuarLainnya: z.string().trim().max(200, "Maksimal 200 karakter").optional(),
   keluhanDalam: z.array(z.string()).default([]),
   keluhanDalamLainnya: z.string().trim().max(200, "Maksimal 200 karakter").optional(),
+  tanggalSesi: z
+    .string({ message: "Pilih tanggal kehadiran" })
+    .min(1, "Pilih tanggal kehadiran")
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal tidak valid"),
   jamSesi: z
     .string({ message: "Pilih jam kehadiran yang tersedia" })
     .min(1, "Pilih jam kehadiran yang tersedia"),

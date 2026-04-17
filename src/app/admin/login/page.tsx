@@ -3,6 +3,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -114,14 +115,12 @@ export default function AdminLogin() {
           </Button>
         </form>
 
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => router.push("/")}
-          className="w-full mt-4 py-6 text-base rounded-xl"
+        <Link
+          href="/"
+          className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-border bg-background px-2.5 py-6 text-base font-medium transition-all hover:bg-muted hover:text-foreground"
         >
           Kembali ke Beranda
-        </Button>
+        </Link>
       </motion.div>
     </div>
   );

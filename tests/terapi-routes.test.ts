@@ -41,6 +41,7 @@ describe("terapi routes", () => {
         nama_lengkap: "Nama Pasien",
         departemen: "Produksi",
         status_kepesertaan: "KARYAWAN",
+        tanggal_terapi: "2026-04-20",
         tanggal_lahir: "1990-01-01",
         jenis_kelamin: "L",
         paket: "LENGKAP",

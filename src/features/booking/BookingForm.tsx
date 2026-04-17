@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CalendarDays, CheckCircle2, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { type BookingFormValues, bookingFormSchema } from "@/lib/schema";
@@ -12,6 +12,14 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const OTHER_OPTION = "Yang lain";
 
@@ -61,6 +69,13 @@ type ApiSesiItem = {
   tersedia: boolean;
 };
 
+type ApiTanggalItem = {
+  tanggal: string;
+  kuota_max: number;
+  kuota_terpakai: number;
+  sisa: number;
+};
+
 function normalizeJam(value: string) {
   return value.replaceAll(".", ":").replace(/\s*-\s*/g, " - ").trim();
 }
@@ -80,12 +95,12 @@ export function BookingForm() {
   const focusStrokeClass = "focus-visible:border-[#185cab] focus-visible:ring-[#185cab]/40";
   const [isSuccess, setIsSuccess] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [availableDates, setAvailableDates] = useState<ApiTanggalItem[]>([]);
+  const [isLoadingDates, setIsLoadingDates] = useState(false);
+  const [datesError, setDatesError] = useState("");
   const [sessions, setSessions] = useState<ApiSesiItem[]>([]);
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
   const [sessionsError, setSessionsError] = useState("");
-
-  const defaultTanggal = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
-
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(bookingFormSchema),
     defaultValues: {
@@ -99,6 +114,7 @@ export function BookingForm() {
       keluhanLuarLainnya: "",
       keluhanDalam: [],
       keluhanDalamLainnya: "",
+      tanggalSesi: "",
       jamSesi: "",
     },
   });
@@ -107,20 +123,59 @@ export function BookingForm() {
     useWatch({ control: form.control, name: "keluhanLuar" }) ?? [];
   const selectedKeluhanDalam =
     useWatch({ control: form.control, name: "keluhanDalam" }) ?? [];
+  const selectedTanggalSesi =
+    useWatch({ control: form.control, name: "tanggalSesi" }) ?? "";
 
   useEffect(() => {
+    const loadDates = async () => {
+      setIsLoadingDates(true);
+      setDatesError("");
+      try {
+        const res = await fetch("/api/terapi/tanggal");
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          setDatesError(json.message || "Gagal memuat tanggal jadwal");
+          setAvailableDates([]);
+          return;
+        }
+        setAvailableDates(json.data as ApiTanggalItem[]);
+      } catch {
+        setDatesError("Terjadi kesalahan jaringan");
+        setAvailableDates([]);
+      } finally {
+        setIsLoadingDates(false);
+      }
+    };
+
+    void loadDates();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedTanggalSesi) {
+      setSessions([]);
+      setSessionsError("");
+      form.setValue("jamSesi", "");
+      return;
+    }
+
     const load = async () => {
       setIsLoadingSessions(true);
       setSessionsError("");
+      form.setValue("jamSesi", "");
       try {
-        const res = await fetch(`/api/terapi/sesi?tanggal=${encodeURIComponent(defaultTanggal)}`);
+        const res = await fetch(`/api/terapi/sesi?tanggal=${encodeURIComponent(selectedTanggalSesi)}`);
         const json = await res.json();
         if (!res.ok || !json.success) {
           setSessionsError(json.message || "Gagal memuat jam kehadiran");
           setSessions([]);
           return;
         }
-        setSessions(json.data as ApiSesiItem[]);
+        const nextSessions = json.data as ApiSesiItem[];
+        setSessions(nextSessions);
+        const firstAvailable = nextSessions.find((item) => item.tersedia);
+        if (firstAvailable) {
+          form.setValue("jamSesi", firstAvailable.id, { shouldValidate: true });
+        }
       } catch {
         setSessionsError("Terjadi kesalahan jaringan");
         setSessions([]);
@@ -130,7 +185,7 @@ export function BookingForm() {
     };
 
     void load();
-  }, [defaultTanggal]);
+  }, [selectedTanggalSesi, form]);
 
   const onSubmit = async (data: BookingFormValues) => {
     setSubmitError("");
@@ -148,6 +203,7 @@ export function BookingForm() {
       nama_lengkap: data.namaLengkap,
       departemen: data.departemen,
       status_kepesertaan: data.statusKepesertaan,
+      tanggal_terapi: data.tanggalSesi,
       tanggal_lahir: format(data.tanggalLahir, "yyyy-MM-dd"),
       jenis_kelamin: data.jenisKelamin,
       paket: data.paket,
@@ -480,6 +536,70 @@ export function BookingForm() {
         </div>
 
         <div className="space-y-3">
+          <Label>Pilih Tanggal Kehadiran</Label>
+          <Controller
+            control={form.control}
+            name="tanggalSesi"
+            render={({ field }) => (
+              <div className="rounded-2xl border border-[#185cab]/20 bg-gradient-to-br from-[#185cab]/10 via-white to-[#3ab5ad]/10 p-4 sm:p-5">
+                <div className="mb-3 flex items-center gap-2 text-[#185cab]">
+                  <CalendarDays className="h-4 w-4" />
+                  <p className="text-sm font-semibold">Jadwal Tanggal Aktif</p>
+                </div>
+                {isLoadingDates ? (
+                  <p className="text-sm text-muted-foreground">Memuat tanggal jadwal...</p>
+                ) : availableDates.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Belum ada jadwal aktif dari admin. Silakan pilih tanggal lain nanti.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                      <SelectTrigger
+                        size="default"
+                        className={cn(
+                          "h-12 w-full rounded-xl border-[#185cab]/20 bg-white/90 px-4 text-sm font-medium shadow-sm",
+                          focusStrokeClass,
+                        )}
+                      >
+                        <SelectValue placeholder="Pilih tanggal kehadiran" />
+                      </SelectTrigger>
+                      <SelectContent align="start" className="w-full rounded-xl border border-[#185cab]/20 p-1">
+                        <SelectGroup>
+                          {availableDates.map((item) => (
+                            <SelectItem
+                              key={item.tanggal}
+                              value={item.tanggal}
+                              className="rounded-lg px-3 py-2.5 data-[highlighted]:bg-[#185cab]/10"
+                            >
+                              <span className="flex w-full items-center justify-between gap-3">
+                                <span className="font-medium text-foreground">{item.tanggal}</span>
+                                <span className="text-xs font-semibold text-[#185cab]">Sisa kuota {item.sisa}</span>
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    {/*
+                      Custom select keeps interaction consistent across browsers,
+                      while still storing the same tanggal value in form state.
+                    */}
+                    <p className="text-xs text-muted-foreground">
+                      Hanya tanggal yang dibuka admin yang bisa dipilih.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          />
+          {datesError && <p className="text-red-500 text-sm">{datesError}</p>}
+          {form.formState.errors.tanggalSesi && (
+            <p className="text-red-500 text-sm">{form.formState.errors.tanggalSesi.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-3">
           <Label>Jam Kehadiran</Label>
           <Controller
             control={form.control}
@@ -490,6 +610,14 @@ export function BookingForm() {
                   <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
                     Memuat pilihan jam...
                   </div>
+                ) : !selectedTanggalSesi ? (
+                  <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                    Pilih tanggal terlebih dahulu untuk menampilkan jam yang tersedia.
+                  </div>
+                ) : sessions.length === 0 ? (
+                  <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                    Tidak ada jam tersedia untuk tanggal ini.
+                  </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {(() => {
@@ -498,35 +626,50 @@ export function BookingForm() {
                       );
                       return JAM_KEHADIRAN_OPTIONS.map((jam) => {
                         const slot = sessionByJam.get(normalizeJam(jam));
-                        const available = slot?.tersedia ?? false;
                         const slotId = slot?.id ?? "";
+                        const isConfigured = Boolean(slotId);
+                        const isFull = isConfigured && !slot?.tersedia;
+                        const isDisabled = !isConfigured || isFull;
                         const isSelected = field.value === slotId;
-                        const statusLabel = slotId ? "Penuh" : "Belum tersedia";
-                      return (
-                        <button
-                          key={jam}
-                          type="button"
-                          disabled={!available}
-                          onClick={() => {
-                            if (!slotId) return;
-                            field.onChange(slotId);
-                          }}
-                          className={cn(
-                            "py-3 px-4 rounded-xl font-medium transition-all duration-300 text-center border-2",
-                            focusStrokeClass,
-                            !available
-                              ? "opacity-50 cursor-not-allowed bg-muted text-muted-foreground border-transparent"
-                              : isSelected
-                                ? "border-[#185cab] bg-[#185cab]/10 text-[#185cab]"
-                                : "border-transparent bg-muted/30 hover:bg-muted text-foreground",
-                          )}
-                        >
-                          {displayJam(jam)}
-                          {!available && (
-                            <span className="block text-xs mt-1 text-destructive font-semibold">{statusLabel}</span>
-                          )}
-                        </button>
-                      );
+                        return (
+                          <button
+                            key={jam}
+                            type="button"
+                            disabled={isDisabled}
+                            onClick={() => {
+                              if (!slotId || isDisabled) return;
+                              field.onChange(slotId);
+                            }}
+                            className={cn(
+                              "py-3 px-4 rounded-xl font-medium transition-all duration-300 text-center border-2",
+                              focusStrokeClass,
+                              !isConfigured
+                                ? "opacity-50 cursor-not-allowed bg-muted text-muted-foreground border-transparent"
+                                : isFull
+                                  ? "opacity-70 cursor-not-allowed bg-muted text-muted-foreground border-transparent"
+                                : isSelected
+                                  ? "border-[#185cab] bg-[#185cab] text-white shadow-sm shadow-[#185cab]/40"
+                                  : "border-transparent bg-muted/30 hover:bg-muted text-foreground",
+                            )}
+                          >
+                            {displayJam(jam)}
+                            {!isConfigured && (
+                              <span className="block text-xs mt-1 text-destructive font-semibold">
+                                Belum tersedia
+                              </span>
+                            )}
+                            {isFull && (
+                              <span
+                                className={cn(
+                                  "block text-xs mt-1 font-semibold",
+                                  isSelected ? "text-amber-200" : "text-amber-600",
+                                )}
+                              >
+                                Penuh ({slot?.terisi ?? 0}/{slot?.kapasitas ?? 0})
+                              </span>
+                            )}
+                          </button>
+                        );
                       });
                     })()}
                   </div>

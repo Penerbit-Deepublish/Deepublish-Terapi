@@ -13,6 +13,7 @@ import { DEFAULT_ADMIN_AVATAR } from "@/lib/constants";
 
 const ADMIN_LINKS = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/manage-jadwal", label: "Manage Jadwal", icon: CalendarDays },
   { href: "/admin/manage-kuota", label: "Manage Kuota", icon: CalendarDays },
   { href: "/admin/riwayat", label: "Riwayat Peserta", icon: Users },
 ];

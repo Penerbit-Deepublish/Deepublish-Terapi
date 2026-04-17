@@ -6,6 +6,7 @@ export const bookingApiSchema = z.object({
   nama_lengkap: z.string().trim().min(3),
   departemen: z.string().trim().min(1),
   status_kepesertaan: z.enum(["KARYAWAN", "KELUARGA"]),
+  tanggal_terapi: z.string().regex(dateRegex),
   tanggal_lahir: z.string().regex(dateRegex),
   jenis_kelamin: z.enum(["L", "P"]),
   lokasi_terapi: z.string().trim().min(1).optional(),
