@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 import { addDays, formatDateOnly, parseDateOnly, startOfTodayUtc } from "@/lib/services/date";
 import { getQuotaByDate, getQuotaByRange } from "@/lib/services/booking";
 
@@ -222,4 +223,86 @@ export async function deletePeserta(id: string) {
 
     return { id };
   });
+}
+
+export async function listPengguna(page: number, pageSize: number, q?: string) {
+  const where = q
+    ? {
+        email: { contains: q, mode: "insensitive" as const },
+      }
+    : undefined;
+
+  const [total, rows] = await Promise.all([
+    prisma.adminUser.count({ where }),
+    prisma.adminUser.findMany({
+      where,
+      orderBy: { email: "asc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: { id: true, email: true },
+    }),
+  ]);
+
+  return {
+    page,
+    pageSize,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    items: rows.map((item) => ({
+      id: item.id,
+      email: item.email,
+    })),
+  };
+}
+
+export async function createPengguna(input: { email: string; password: string }) {
+  const passwordHash = await bcrypt.hash(input.password, 10);
+  const user = await prisma.adminUser.create({
+    data: {
+      email: input.email.toLowerCase(),
+      passwordHash,
+    },
+    select: { id: true, email: true },
+  });
+
+  return user;
+}
+
+export async function updatePengguna(id: string, input: { email?: string; password?: string }) {
+  const data: {
+    email?: string;
+    passwordHash?: string;
+  } = {};
+
+  if (input.email) {
+    data.email = input.email.toLowerCase();
+  }
+  if (input.password) {
+    data.passwordHash = await bcrypt.hash(input.password, 10);
+  }
+
+  const updated = await prisma.adminUser.update({
+    where: { id },
+    data,
+    select: { id: true, email: true },
+  });
+
+  return updated;
+}
+
+export async function deletePengguna(id: string, currentAdminId?: string) {
+  if (currentAdminId && currentAdminId === id) {
+    throw new Error("CANNOT_DELETE_SELF");
+  }
+
+  const existing = await prisma.adminUser.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+  if (!existing) {
+    return null;
+  }
+
+  await prisma.adminUser.delete({ where: { id } });
+  return { id };
 }

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Settings, Save } from "lucide-react";
+import { Save } from "lucide-react";
 
 interface KuotaItem {
   id: string;
@@ -26,29 +26,46 @@ export default function ManageKuota() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
 
   const loadKuota = useCallback(async () => {
-    const res = await fetch("/api/admin/kuota");
-    const json = await res.json();
-    if (!res.ok || !json.success) {
-      setError(json.message || "Gagal memuat kuota");
-      return;
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/admin/kuota");
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setError(json.message || "Gagal memuat kuota");
+        return;
+      }
+      setKuotaData(json.data);
+      setCurrentPage(1);
+      setSingleEdits(
+        Object.fromEntries((json.data as KuotaItem[]).map((item) => [item.id, item.kuota_max])),
+      );
+    } finally {
+      setIsLoading(false);
     }
-    setKuotaData(json.data);
-    setCurrentPage(1);
-    setSingleEdits(
-      Object.fromEntries((json.data as KuotaItem[]).map((item) => [item.id, item.kuota_max])),
-    );
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadKuota();
   }, [loadKuota]);
 
   const applyMassal = async () => {
     setError("");
     setMessage("");
+    if (!tanggalMulai || !tanggalSelesai) {
+      setError("Tanggal mulai dan tanggal selesai wajib diisi sebelum penyesuaian kuota.");
+      return;
+    }
+    if (tanggalSelesai < tanggalMulai) {
+      setError("Tanggal selesai tidak boleh lebih kecil dari tanggal mulai.");
+      return;
+    }
+    if (kuotaMassal < 1) {
+      setError("Kuota maksimum per hari minimal 1.");
+      return;
+    }
 
     const res = await fetch("/api/admin/kuota", {
       method: "POST",
@@ -93,13 +110,23 @@ export default function ManageKuota() {
   const startIndex = (currentPage - 1) * PAGE_SIZE;
   const paginatedKuota = kuotaData.slice(startIndex, startIndex + PAGE_SIZE);
 
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-10 w-72 rounded-xl bg-slate-200" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="h-80 rounded-2xl bg-slate-200" />
+          <div className="lg:col-span-2 h-80 rounded-2xl bg-slate-200" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-primary flex items-center gap-2">
-          <Settings className="w-8 h-8" /> Manajemen Kuota
-        </h1>
-        <p className="text-muted-foreground mt-1">Atur kuota ketersediaan jadwal terapi per hari.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Manajemen Kuota</h1>
+        <p className="mt-1 text-sm text-slate-500">Atur kuota ketersediaan jadwal terapi per hari.</p>
       </div>
 
       {error && <p className="text-sm text-red-500">{error}</p>}

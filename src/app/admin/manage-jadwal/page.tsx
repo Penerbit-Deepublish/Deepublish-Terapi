@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CalendarDays, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,19 +21,24 @@ export default function ManageJadwalPage() {
   const [kuotaMax, setKuotaMax] = useState(10);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   const loadJadwal = useCallback(async () => {
-    const res = await fetch("/api/admin/kuota");
-    const json = await res.json();
-    if (!res.ok || !json.success) {
-      setError(json.message || "Gagal memuat jadwal");
-      return;
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/admin/kuota");
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setError(json.message || "Gagal memuat jadwal");
+        return;
+      }
+      setJadwal(json.data as JadwalTanggalItem[]);
+    } finally {
+      setIsLoading(false);
     }
-    setJadwal(json.data as JadwalTanggalItem[]);
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadJadwal();
   }, [loadJadwal]);
 
@@ -61,13 +66,21 @@ export default function ManageJadwalPage() {
     await loadJadwal();
   };
 
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-10 w-72 rounded-xl bg-slate-200" />
+        <div className="h-40 rounded-2xl bg-slate-200" />
+        <div className="h-72 rounded-2xl bg-slate-200" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-primary flex items-center gap-2">
-          <CalendarDays className="w-8 h-8" /> Manage Jadwal Tanggal
-        </h1>
-        <p className="text-muted-foreground mt-1">
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Manage Jadwal Tanggal</h1>
+        <p className="mt-1 text-sm text-slate-500">
           Tentukan tanggal jadwal yang aktif untuk pemesanan customer.
         </p>
       </div>

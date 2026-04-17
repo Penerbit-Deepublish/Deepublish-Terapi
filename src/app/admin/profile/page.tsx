@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { UserCircle2 } from "lucide-react";
 import { DEFAULT_ADMIN_AVATAR } from "@/lib/constants";
 
 export default function AdminProfilePage() {
@@ -107,9 +106,10 @@ export default function AdminProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-3">
-        <h1 className="text-3xl font-bold text-primary">Profile</h1>
-        <p className="text-muted-foreground">Memuat data profil...</p>
+      <div className="space-y-6 animate-pulse">
+        <div className="h-10 w-56 rounded-xl bg-slate-200" />
+        <div className="h-72 max-w-2xl rounded-2xl bg-slate-200" />
+        <div className="h-72 max-w-2xl rounded-2xl bg-slate-200" />
       </div>
     );
   }
@@ -117,11 +117,8 @@ export default function AdminProfilePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-primary flex items-center gap-2">
-          <UserCircle2 className="h-8 w-8" />
-          Profile Admin
-        </h1>
-        <p className="text-muted-foreground mt-1">Perbarui informasi akun dan foto profil Anda.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Profile Admin</h1>
+        <p className="mt-1 text-sm text-slate-500">Perbarui informasi akun dan foto profil Anda.</p>
       </div>
 
       {error && <p className="text-sm text-red-500">{error}</p>}

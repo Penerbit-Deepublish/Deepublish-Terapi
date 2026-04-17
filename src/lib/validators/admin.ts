@@ -37,6 +37,31 @@ export const pesertaQuerySchema = z.object({
   q: z.string().optional(),
 });
 
+export const penggunaQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(15),
+  q: z.string().trim().optional(),
+});
+
+export const createPenggunaSchema = z.object({
+  email: z.string().trim().email(),
+  password: z.string().min(8).max(72),
+});
+
+export const updatePenggunaSchema = z
+  .object({
+    email: z.string().trim().email().optional(),
+    password: z.string().min(8).max(72).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (!value.email && !value.password) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Isi minimal email atau password",
+      });
+    }
+  });
+
 export const adminProfileUpdateSchema = z.object({
   name: z.string().trim().min(1).max(120),
   email: z.string().trim().email(),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
@@ -126,29 +126,29 @@ export function BookingForm() {
   const selectedTanggalSesi =
     useWatch({ control: form.control, name: "tanggalSesi" }) ?? "";
 
-  useEffect(() => {
-    const loadDates = async () => {
-      setIsLoadingDates(true);
-      setDatesError("");
-      try {
-        const res = await fetch("/api/terapi/tanggal");
-        const json = await res.json();
-        if (!res.ok || !json.success) {
-          setDatesError(json.message || "Gagal memuat tanggal jadwal");
-          setAvailableDates([]);
-          return;
-        }
-        setAvailableDates(json.data as ApiTanggalItem[]);
-      } catch {
-        setDatesError("Terjadi kesalahan jaringan");
+  const loadDates = useCallback(async () => {
+    setIsLoadingDates(true);
+    setDatesError("");
+    try {
+      const res = await fetch("/api/terapi/tanggal");
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setDatesError(json.message || "Gagal memuat tanggal jadwal");
         setAvailableDates([]);
-      } finally {
-        setIsLoadingDates(false);
+        return;
       }
-    };
-
-    void loadDates();
+      setAvailableDates(json.data as ApiTanggalItem[]);
+    } catch {
+      setDatesError("Terjadi kesalahan jaringan");
+      setAvailableDates([]);
+    } finally {
+      setIsLoadingDates(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadDates();
+  }, [loadDates]);
 
   useEffect(() => {
     if (!selectedTanggalSesi) {
@@ -225,6 +225,20 @@ export function BookingForm() {
         setSubmitError(json.message || "Gagal melakukan pendaftaran");
         return;
       }
+      setAvailableDates((prev) =>
+        prev
+          .map((item) => {
+            if (item.tanggal !== data.tanggalSesi) return item;
+            const kuotaTerpakai = item.kuota_terpakai + 1;
+            const sisa = Math.max(0, item.kuota_max - kuotaTerpakai);
+            return {
+              ...item,
+              kuota_terpakai: kuotaTerpakai,
+              sisa,
+            };
+          })
+          .filter((item) => item.sisa > 0),
+      );
       setIsSuccess(true);
     } catch {
       setSubmitError("Terjadi kesalahan jaringan");
@@ -251,10 +265,11 @@ export function BookingForm() {
         </p>
         <Button
           className="mt-6"
-          onClick={() => {
+          onClick={async () => {
             setIsSuccess(false);
             form.reset();
             setSubmitError("");
+            await loadDates();
           }}
         >
           Buat Pendaftaran Baru
@@ -564,7 +579,11 @@ export function BookingForm() {
                       >
                         <SelectValue placeholder="Pilih tanggal kehadiran" />
                       </SelectTrigger>
-                      <SelectContent align="start" className="w-full rounded-xl border border-[#185cab]/20 p-1">
+                      <SelectContent
+                        align="start"
+                        sideOffset={8}
+                        className="w-[var(--anchor-width)] max-h-72 rounded-xl border border-[#185cab]/20 p-1 shadow-lg"
+                      >
                         <SelectGroup>
                           {availableDates.map((item) => (
                             <SelectItem
@@ -572,9 +591,11 @@ export function BookingForm() {
                               value={item.tanggal}
                               className="rounded-lg px-3 py-2.5 data-[highlighted]:bg-[#185cab]/10"
                             >
-                              <span className="flex w-full items-center justify-between gap-3">
+                              <span className="flex flex-col items-start gap-0.5 pr-6">
                                 <span className="font-medium text-foreground">{item.tanggal}</span>
-                                <span className="text-xs font-semibold text-[#185cab]">Sisa kuota {item.sisa}</span>
+                                <span className="text-[11px] font-semibold text-[#185cab]">
+                                  Sisa kuota {item.sisa}
+                                </span>
                               </span>
                             </SelectItem>
                           ))}

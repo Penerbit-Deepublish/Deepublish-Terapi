@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, Filter, FileText, Trash2 } from "lucide-react";
+import { Search, Filter, Trash2 } from "lucide-react";
 
 interface PesertaItem {
   id: string;
@@ -37,25 +37,30 @@ export default function RiwayatPeserta() {
   const [data, setData] = useState<PesertaResponse | null>(null);
   const [page, setPage] = useState(1);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   const loadData = useCallback(async (targetPage = page, q = searchTerm) => {
-    const params = new URLSearchParams({ page: String(targetPage), pageSize: String(PAGE_SIZE) });
-    if (q) params.set("q", q);
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(targetPage), pageSize: String(PAGE_SIZE) });
+      if (q) params.set("q", q);
 
-    const res = await fetch(`/api/admin/peserta?${params.toString()}`);
-    const json = await res.json();
-    if (!res.ok || !json.success) {
-      setError(json.message || "Gagal memuat data");
-      return;
+      const res = await fetch(`/api/admin/peserta?${params.toString()}`);
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setError(json.message || "Gagal memuat data");
+        return;
+      }
+
+      setError("");
+      setData(json.data);
+      setPage(targetPage);
+    } finally {
+      setIsLoading(false);
     }
-
-    setError("");
-    setData(json.data);
-    setPage(targetPage);
   }, [page, searchTerm]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadData(1, "");
   }, [loadData]);
 
@@ -73,14 +78,21 @@ export default function RiwayatPeserta() {
   const items = data?.items ?? [];
   const totalPages = data?.totalPages ?? 1;
 
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-10 w-72 rounded-xl bg-slate-200" />
+        <div className="h-[420px] rounded-2xl bg-slate-200" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-primary flex items-center gap-2">
-            <FileText className="w-8 h-8" /> Riwayat Peserta
-          </h1>
-          <p className="text-muted-foreground mt-1">Data historis pasien dan status sesi terapi.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Riwayat Peserta</h1>
+          <p className="mt-1 text-sm text-slate-500">Data historis pasien dan status sesi terapi.</p>
         </div>
         <Button variant="outline"><Filter className="w-4 h-4 mr-2" /> Filter</Button>
       </div>
