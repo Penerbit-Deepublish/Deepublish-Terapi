@@ -39,7 +39,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     email: "",
     avatar: DEFAULT_ADMIN_AVATAR,
   });
-  const avatarMenuRef = useRef<HTMLDivElement | null>(null);
+  const desktopAvatarMenuRef = useRef<HTMLDivElement | null>(null);
+  const mobileAvatarMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (pathname === "/admin/login") return;
@@ -59,14 +60,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (!avatarMenuRef.current) return;
-      if (!avatarMenuRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const clickedDesktop = desktopAvatarMenuRef.current?.contains(target);
+      const clickedMobile = mobileAvatarMenuRef.current?.contains(target);
+      if (!clickedDesktop && !clickedMobile) {
         setIsAvatarMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isMobileMenuOpen]);
 
   const handleLogout = async () => {
     setIsAvatarMenuOpen(false);
@@ -88,9 +100,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-[#dfe2eb]">
-      <div className="flex min-h-screen w-full flex-col bg-[#f2f4fb] md:flex-row">
+      <div className="flex min-h-screen w-full flex-col bg-[#f2f4fb] lg:flex-row">
       {/* Mobile Header */}
-      <div className="md:hidden flex items-center justify-between p-4 bg-white/80 border-b border-[#dde2f2] sticky top-0 z-50 w-full">
+      <div className="lg:hidden flex items-center justify-between p-4 bg-white/80 border-b border-[#dde2f2] sticky top-0 z-50 w-full">
         <Link href="/admin/dashboard" className="flex items-center gap-3">
           <Image
             src={LogoLight}
@@ -110,9 +122,62 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           />
           <span className="font-bold text-lg text-primary">Admin Panel</span>
         </Link>
-        <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-          <Menu className="h-6 w-6" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm hover:text-slate-900"
+          >
+            <Search className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm hover:text-slate-900"
+          >
+            <Bell className="h-4 w-4" />
+          </button>
+          <div ref={mobileAvatarMenuRef} className="relative">
+            <button
+              type="button"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm"
+              onClick={() => setIsAvatarMenuOpen((prev) => !prev)}
+            >
+              <Image
+                src={profile.avatar}
+                alt={profile.name}
+                width={28}
+                height={28}
+                className="h-7 w-7 rounded-full object-cover"
+              />
+            </button>
+            {isAvatarMenuOpen && (
+              <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100"
+                  onClick={() => {
+                    setIsAvatarMenuOpen(false);
+                    setIsMobileMenuOpen(false);
+                    router.push("/admin/profile");
+                  }}
+                >
+                  <User className="h-4 w-4" />
+                  Profile
+                </button>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-500 hover:bg-red-50"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+            <Menu className="h-6 w-6" />
+          </Button>
+        </div>
       </div>
 
       {/* Mobile/Tablet Backdrop */}
@@ -120,7 +185,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <button
           type="button"
           aria-label="Tutup menu"
-          className="fixed inset-0 z-40 bg-black/35 md:hidden"
+          className="fixed inset-0 z-40 bg-black/35 lg:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
@@ -128,11 +193,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Sidebar */}
       <aside
         className={cn(
-        "fixed top-0 left-0 z-50 h-screen w-[82%] max-w-xs overflow-y-auto border-r border-[#e5e8f2] bg-white/90 backdrop-blur-md flex flex-col justify-between transform transition-transform duration-300 ease-out md:relative md:inset-auto md:z-auto md:h-auto md:w-[260px] md:max-w-none md:translate-x-0 md:border-r-0 md:bg-transparent md:p-3 md:shrink-0 xl:w-[300px]",
+        "fixed top-0 left-0 z-50 h-screen w-[82%] max-w-xs overflow-y-auto border-r border-[#e5e8f2] bg-white/90 backdrop-blur-md flex flex-col justify-between transform transition-transform duration-300 ease-out lg:relative lg:inset-auto lg:z-auto lg:h-auto lg:w-[260px] lg:max-w-none lg:translate-x-0 lg:border-r-0 lg:bg-transparent lg:p-3 lg:shrink-0 xl:w-[300px]",
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}
       >
-        <div className="h-full p-5 md:rounded-3xl md:border md:border-[#e2e6f2] md:bg-white md:p-6 md:shadow-[0_10px_32px_rgba(67,89,148,0.08)]">
+        <div className="h-full p-5 lg:rounded-3xl lg:border lg:border-[#e2e6f2] lg:bg-white lg:p-6 lg:shadow-[0_10px_32px_rgba(67,89,148,0.08)]">
           <Link href="/admin/dashboard" className="flex items-center gap-3 mb-8">
             <Image
               src={LogoLight}
@@ -207,7 +272,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
-        <div className="mb-4 hidden items-center justify-between sm:mb-6 md:flex">
+        <div className="mb-4 hidden items-center justify-between sm:mb-6 lg:flex">
           <div />
           <div className="flex items-center gap-2 sm:gap-3">
             <button
@@ -222,7 +287,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             >
               <Bell className="h-4 w-4" />
             </button>
-            <div ref={avatarMenuRef} className="relative">
+            <div ref={desktopAvatarMenuRef} className="relative">
               <button
                 type="button"
                 className="flex items-center gap-2 rounded-full bg-white py-1 pr-2 pl-1 shadow-sm"
@@ -265,8 +330,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   </button>
                 </div>
               )}
+            </div>
           </div>
-        </div>
         </div>
         {children}
       </main>
