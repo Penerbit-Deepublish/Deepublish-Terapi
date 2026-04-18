@@ -204,3 +204,171 @@
   background-color: #47a8a2;
   animation: neonPulseTealSlow 2.8s ease-in-out infinite;
 }
+
+.preloader-overlay {
+  background:
+    radial-gradient(circle at 18% 22%, rgba(22, 92, 171, 0.18), transparent 48%),
+    radial-gradient(circle at 84% 78%, rgba(58, 181, 173, 0.16), transparent 44%),
+    linear-gradient(160deg, #f6f8ff 0%, #edf2ff 42%, #eefaf9 100%);
+}
+
+.preloader-grid {
+  background-image:
+    linear-gradient(to right, rgba(22, 92, 171, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(22, 92, 171, 0.08) 1px, transparent 1px);
+  background-size: 38px 38px;
+  mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.92), transparent 82%);
+  animation: preloaderGridFloat 12s linear infinite;
+}
+
+.preloader-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(50px);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.preloader-orb-one {
+  width: 220px;
+  height: 220px;
+  background: rgba(22, 92, 171, 0.5);
+  top: 16%;
+  left: 18%;
+  animation: preloaderOrbShift 6.5s ease-in-out infinite;
+}
+
+.preloader-orb-two {
+  width: 190px;
+  height: 190px;
+  background: rgba(58, 181, 173, 0.52);
+  right: 14%;
+  bottom: 20%;
+  animation: preloaderOrbShift 7.3s ease-in-out infinite reverse;
+}
+
+.preloader-logo-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 136px;
+  height: 136px;
+}
+
+.preloader-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 1px solid rgba(22, 92, 171, 0.24);
+}
+
+.preloader-ring-one {
+  animation: preloaderRingRotate 3.2s linear infinite;
+}
+
+.preloader-ring-two {
+  inset: 12px;
+  border-color: rgba(58, 181, 173, 0.32);
+  animation: preloaderRingRotate 2.2s linear infinite reverse;
+}
+
+.preloader-logo-glow {
+  position: absolute;
+  width: 96px;
+  height: 96px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(58, 181, 173, 0.35), rgba(22, 92, 171, 0.08) 70%, transparent 100%);
+  animation: preloaderGlowPulse 2.2s ease-in-out infinite;
+}
+
+.preloader-logo-core {
+  position: relative;
+  z-index: 1;
+  width: 88px;
+  height: 88px;
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  background:
+    linear-gradient(140deg, rgba(255, 255, 255, 0.96), rgba(243, 247, 255, 0.9));
+  box-shadow:
+    0 10px 30px rgba(22, 92, 171, 0.18),
+    inset 0 0 0 1px rgba(22, 92, 171, 0.14);
+}
+
+.preloader-progress {
+  width: min(260px, 78vw);
+  height: 6px;
+  border-radius: 9999px;
+  background: rgba(22, 92, 171, 0.14);
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(22, 92, 171, 0.08);
+}
+
+.preloader-progress-bar {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #165cab 0%, #2a8fb4 55%, #3ab5ad 100%);
+  animation: preloaderProgressSweep 1.25s ease-in-out infinite;
+}
+
+@keyframes preloaderRingRotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes preloaderGlowPulse {
+  0%,
+  100% {
+    transform: scale(0.92);
+    opacity: 0.78;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+@keyframes preloaderOrbShift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -12px, 0);
+  }
+}
+
+@keyframes preloaderGridFloat {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-38px);
+  }
+}
+
+@keyframes preloaderProgressSweep {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(310%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preloader-grid,
+  .preloader-orb,
+  .preloader-ring,
+  .preloader-logo-glow,
+  .preloader-progress-bar {
+    animation: none !important;
+  }
+}

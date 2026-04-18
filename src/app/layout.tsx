@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Cabin } from "next/font/google";
 import localFont from "next/font/local";
+import { GlobalPreloader } from "@/components/GlobalPreloader";
 import "./globals.css";
 
 const cabin = Cabin({
@@ -71,7 +72,10 @@ export default function RootLayout({
       lang="en"
       className={`${cabin.variable} ${iosevkaCharonMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <body className="min-h-full flex flex-col font-sans">
+        <GlobalPreloader />
+        {children}
+      </body>
     </html>
   );
 }
