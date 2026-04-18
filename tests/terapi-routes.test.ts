@@ -74,7 +74,7 @@ describe("terapi routes", () => {
 
   it("loads sesi availability", async () => {
     getSesiMock.mockResolvedValueOnce([
-      { id: "1", jam: "09:00", kapasitas: 5, terisi: 3, tersedia: true },
+      { id: "1", jam: "09:00", kapasitas: 2, terisi: 1, tersedia: true },
     ]);
 
     const req = new NextRequest("http://localhost/api/terapi/sesi?tanggal=2026-04-13");

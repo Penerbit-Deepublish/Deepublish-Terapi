@@ -34,8 +34,12 @@ const DEFAULT_SESSION_TIMES = [
   "15:00 - 16:00",
 ] as const;
 
-const MAX_BOOKING_PER_SESSION = 3;
+const MAX_BOOKING_PER_SESSION = 2;
 const DEFAULT_SESSION_CAPACITY = MAX_BOOKING_PER_SESSION;
+
+function getEffectiveSessionCapacity(kapasitas: number) {
+  return Math.max(1, Math.min(kapasitas, MAX_BOOKING_PER_SESSION));
+}
 
 function normalizeJam(value: string) {
   return value.replaceAll(".", ":").replace(/\s*-\s*/g, " - ").trim();
@@ -68,7 +72,7 @@ async function getQuotaSnapshotsForRange(from: Date, to: Date): Promise<QuotaSna
     }),
   ]);
 
-  const defaultMax = sessions.reduce((sum, item) => sum + item.kapasitas, 0);
+  const defaultMax = sessions.reduce((sum, item) => sum + getEffectiveSessionCapacity(item.kapasitas), 0);
   const quotaMap = new Map(
     quotas.map((item) => [formatDateOnly(item.tanggal), item] as const),
   );
@@ -135,13 +139,14 @@ export async function getSesiAvailability(dateString: string): Promise<SessionAv
 
   return sessions.map((s) => {
     const terisiTanggal = bookedMap[s.id] ?? 0;
+    const kapasitas = getEffectiveSessionCapacity(s.kapasitas);
 
     return {
       id: s.id,
       jam: s.jam,
-      kapasitas: MAX_BOOKING_PER_SESSION,
+      kapasitas,
       terisi: terisiTanggal,
-      tersedia: terisiTanggal < MAX_BOOKING_PER_SESSION,
+      tersedia: terisiTanggal < kapasitas,
     };
   });
 }
@@ -216,7 +221,8 @@ export async function createBooking(input: BookingApiInput) {
       throw new Error("SESI_NOT_FOUND");
     }
 
-    if (sessionBookings >= MAX_BOOKING_PER_SESSION) {
+    const sessionCapacity = getEffectiveSessionCapacity(session.kapasitas);
+    if (sessionBookings >= sessionCapacity) {
       throw new Error("SESI_FULL");
     }
 

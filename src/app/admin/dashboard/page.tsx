@@ -38,7 +38,7 @@ type MetricCard = {
   icon: ComponentType<{ className?: string }>;
 };
 
-const MAX_PER_SESI = 3;
+const MAX_PER_SESI = 2;
 
 function DashboardSkeleton() {
   return (

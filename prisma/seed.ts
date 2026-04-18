@@ -17,12 +17,12 @@ async function main() {
   });
 
   const defaultSessions = [
-    { jam: "09:00 - 10:00", kapasitas: 5 },
-    { jam: "10:00 - 11:00", kapasitas: 5 },
-    { jam: "11:00 - 12:00", kapasitas: 5 },
-    { jam: "13:00 - 14:00", kapasitas: 5 },
-    { jam: "14:00 - 15:00", kapasitas: 5 },
-    { jam: "15:00 - 16:00", kapasitas: 5 },
+    { jam: "09:00 - 10:00", kapasitas: 2 },
+    { jam: "10:00 - 11:00", kapasitas: 2 },
+    { jam: "11:00 - 12:00", kapasitas: 2 },
+    { jam: "13:00 - 14:00", kapasitas: 2 },
+    { jam: "14:00 - 15:00", kapasitas: 2 },
+    { jam: "15:00 - 16:00", kapasitas: 2 },
   ];
 
   for (const sesi of defaultSessions) {

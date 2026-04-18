@@ -4,6 +4,12 @@ import type { Prisma } from "@prisma/client";
 import { addDays, formatDateOnly, parseDateOnly, startOfTodayUtc } from "@/lib/services/date";
 import { getQuotaByDate } from "@/lib/services/booking";
 
+const MAX_BOOKING_PER_SESSION = 2;
+
+function getEffectiveSessionCapacity(kapasitas: number) {
+  return Math.max(1, Math.min(kapasitas, MAX_BOOKING_PER_SESSION));
+}
+
 export async function getDashboardData(input?: { from?: string; to?: string }) {
   const today = startOfTodayUtc();
   const rangeEnd = input?.to ? parseDateOnly(input.to) : today;
@@ -59,11 +65,12 @@ export async function getDashboardData(input?: { from?: string; to?: string }) {
       })),
       penggunaan_kuota_per_sesi: sessions.map((item) => {
         const terpakai = todayMap[item.id] ?? 0;
+        const kapasitas = getEffectiveSessionCapacity(item.kapasitas);
         return {
           sesi_id: item.id,
           jam: item.jam,
           terpakai,
-          sisa: Math.max(0, item.kapasitas - terpakai),
+          sisa: Math.max(0, kapasitas - terpakai),
         };
       }),
     },
@@ -184,19 +191,20 @@ export async function deleteKuotaByTanggal(tanggalString: string) {
 }
 
 export async function upsertSesi(input: { id?: string; jam: string; kapasitas: number }) {
+  const kapasitas = getEffectiveSessionCapacity(input.kapasitas);
   const sesi = input.id
     ? await prisma.sesi.update({
         where: { id: input.id },
-        data: { jam: input.jam, kapasitas: input.kapasitas },
+        data: { jam: input.jam, kapasitas },
       })
     : await prisma.sesi.create({
-        data: { jam: input.jam, kapasitas: input.kapasitas },
+        data: { jam: input.jam, kapasitas },
       });
 
   return {
     id: sesi.id,
     jam: sesi.jam,
-    kapasitas: sesi.kapasitas,
+    kapasitas: getEffectiveSessionCapacity(sesi.kapasitas),
     terisi: sesi.terisi,
   };
 }
@@ -206,7 +214,7 @@ export async function listSesi() {
   return data.map((item) => ({
     id: item.id,
     jam: item.jam,
-    kapasitas: item.kapasitas,
+    kapasitas: getEffectiveSessionCapacity(item.kapasitas),
     terisi: item.terisi,
   }));
 }
