@@ -18,6 +18,16 @@ interface JadwalTanggalItem {
 
 const PAGE_SIZE = 15;
 
+async function parseJsonSafely(res: Response) {
+  const raw = await res.text();
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as { success?: boolean; message?: string; data?: unknown };
+  } catch {
+    return null;
+  }
+}
+
 export default function ManageJadwalPage() {
   const [jadwal, setJadwal] = useState<JadwalTanggalItem[]>([]);
   const [tanggal, setTanggal] = useState("");
@@ -36,13 +46,15 @@ export default function ManageJadwalPage() {
       if (from) params.set("from", from);
       if (to) params.set("to", to);
       const res = await fetch(`/api/admin/kuota?${params.toString()}`);
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        setError(json.message || "Gagal memuat jadwal");
+      const json = await parseJsonSafely(res);
+      if (!res.ok || !json?.success) {
+        setError(json?.message || "Gagal memuat jadwal");
         return;
       }
-      setJadwal(json.data as JadwalTanggalItem[]);
+      setJadwal((json.data as JadwalTanggalItem[]) ?? []);
       setCurrentPage(1);
+    } catch {
+      setError("Terjadi kesalahan jaringan saat memuat jadwal");
     } finally {
       setIsLoading(false);
     }
@@ -65,10 +77,10 @@ export default function ManageJadwalPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tanggal, kuota_max: kuotaMax }),
     });
-    const json = await res.json();
+    const json = await parseJsonSafely(res);
 
-    if (!res.ok || !json.success) {
-      setError(json.message || "Gagal menyimpan jadwal tanggal");
+    if (!res.ok || !json?.success) {
+      setError(json?.message || "Gagal menyimpan jadwal tanggal");
       return;
     }
 
@@ -85,9 +97,9 @@ export default function ManageJadwalPage() {
     const res = await fetch(`/api/admin/kuota?tanggal=${encodeURIComponent(tanggalValue)}`, {
       method: "DELETE",
     });
-    const json = await res.json();
-    if (!res.ok || !json.success) {
-      setError(json.message || "Gagal menghapus jadwal");
+    const json = await parseJsonSafely(res);
+    if (!res.ok || !json?.success) {
+      setError(json?.message || "Gagal menghapus jadwal");
       return;
     }
 

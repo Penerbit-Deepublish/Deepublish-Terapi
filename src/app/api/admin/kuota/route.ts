@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getAdminFromRequest } from "@/app/api/_utils/auth";
 import { fail, ok } from "@/app/api/_utils/http";
 import { deleteKuotaByTanggal, listKuota, setKuotaRange } from "@/lib/services/admin";
@@ -10,8 +11,24 @@ export async function GET(req: NextRequest) {
 
   const dateFrom = req.nextUrl.searchParams.get("from") || undefined;
   const dateTo = req.nextUrl.searchParams.get("to") || undefined;
-  const data = await listKuota(dateFrom, dateTo);
-  return ok(data);
+  try {
+    const data = await listKuota(dateFrom, dateTo);
+    return ok(data);
+  } catch (error) {
+    if (error instanceof Error && error.message === "INVALID_DATE_RANGE") {
+      return fail("Invalid date range", 422);
+    }
+
+    const prismaError = error as Prisma.PrismaClientKnownRequestError;
+    const isMissingTable =
+      prismaError?.code === "P2021" ||
+      (error instanceof Error && /relation .* does not exist/i.test(error.message));
+    if (isMissingTable) {
+      return fail("Database belum siap. Jalankan migrasi Prisma terlebih dahulu", 500);
+    }
+
+    return fail("Failed to load quota", 500);
+  }
 }
 
 export async function POST(req: NextRequest) {
