@@ -50,7 +50,7 @@ describe("admin routes", () => {
 
   it("returns empty dashboard when table is missing", async () => {
     authMock.mockReturnValueOnce({ sub: "1", email: "a", role: "admin" });
-    dashboardMock.mockRejectedValueOnce(new Error('relation "hris.terapi" does not exist'));
+    dashboardMock.mockRejectedValueOnce(new Error('relation "terapi.terapi" does not exist'));
 
     const req = new NextRequest("http://localhost/api/admin/dashboard");
     const res = await dashboardGet(req);

@@ -1,4 +1,4 @@
-ALTER TABLE "hris"."terapi"
+ALTER TABLE "terapi"."terapi"
   ADD COLUMN IF NOT EXISTS "usia" INTEGER,
   ADD COLUMN IF NOT EXISTS "alamat" TEXT,
   ADD COLUMN IF NOT EXISTS "catatan_tambahan" TEXT;

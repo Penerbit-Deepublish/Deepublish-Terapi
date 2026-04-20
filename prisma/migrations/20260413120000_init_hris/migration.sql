@@ -1,8 +1,8 @@
--- Create schema used by HRIS domain
-CREATE SCHEMA IF NOT EXISTS "hris";
+-- Create schema used by terapi domain
+CREATE SCHEMA IF NOT EXISTS "terapi";
 
--- Main booking table (required name: hris.terapi)
-CREATE TABLE IF NOT EXISTS "hris"."terapi" (
+-- Main booking table (required name: terapi.terapi)
+CREATE TABLE IF NOT EXISTS "terapi"."terapi" (
   "id" UUID NOT NULL,
   "nama_lengkap" TEXT NOT NULL,
   "nomor_hp" TEXT NOT NULL,
@@ -19,14 +19,14 @@ CREATE TABLE IF NOT EXISTS "hris"."terapi" (
   CONSTRAINT "terapi_pkey" PRIMARY KEY ("id")
 );
 
-CREATE TABLE IF NOT EXISTS "hris"."admin_users" (
+CREATE TABLE IF NOT EXISTS "terapi"."admin_users" (
   "id" UUID NOT NULL,
   "email" TEXT NOT NULL,
   "password_hash" TEXT NOT NULL,
   CONSTRAINT "admin_users_pkey" PRIMARY KEY ("id")
 );
 
-CREATE TABLE IF NOT EXISTS "hris"."kuota" (
+CREATE TABLE IF NOT EXISTS "terapi"."kuota" (
   "id" UUID NOT NULL,
   "tanggal" DATE NOT NULL,
   "kuota_max" INTEGER NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS "hris"."kuota" (
   CONSTRAINT "kuota_pkey" PRIMARY KEY ("id")
 );
 
-CREATE TABLE IF NOT EXISTS "hris"."sesi" (
+CREATE TABLE IF NOT EXISTS "terapi"."sesi" (
   "id" UUID NOT NULL,
   "jam" TEXT NOT NULL,
   "kapasitas" INTEGER NOT NULL,
@@ -42,11 +42,11 @@ CREATE TABLE IF NOT EXISTS "hris"."sesi" (
   CONSTRAINT "sesi_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "admin_users_email_key" ON "hris"."admin_users"("email");
-CREATE UNIQUE INDEX IF NOT EXISTS "kuota_tanggal_key" ON "hris"."kuota"("tanggal");
-CREATE UNIQUE INDEX IF NOT EXISTS "sesi_jam_key" ON "hris"."sesi"("jam");
+CREATE UNIQUE INDEX IF NOT EXISTS "admin_users_email_key" ON "terapi"."admin_users"("email");
+CREATE UNIQUE INDEX IF NOT EXISTS "kuota_tanggal_key" ON "terapi"."kuota"("tanggal");
+CREATE UNIQUE INDEX IF NOT EXISTS "sesi_jam_key" ON "terapi"."sesi"("jam");
 
-CREATE INDEX IF NOT EXISTS "terapi_tanggal_terapi_idx" ON "hris"."terapi"("tanggal_terapi");
-CREATE INDEX IF NOT EXISTS "terapi_tanggal_terapi_jam_sesi_idx" ON "hris"."terapi"("tanggal_terapi", "jam_sesi");
-CREATE INDEX IF NOT EXISTS "kuota_tanggal_idx" ON "hris"."kuota"("tanggal");
-CREATE INDEX IF NOT EXISTS "sesi_jam_idx" ON "hris"."sesi"("jam");
+CREATE INDEX IF NOT EXISTS "terapi_tanggal_terapi_idx" ON "terapi"."terapi"("tanggal_terapi");
+CREATE INDEX IF NOT EXISTS "terapi_tanggal_terapi_jam_sesi_idx" ON "terapi"."terapi"("tanggal_terapi", "jam_sesi");
+CREATE INDEX IF NOT EXISTS "kuota_tanggal_idx" ON "terapi"."kuota"("tanggal");
+CREATE INDEX IF NOT EXISTS "sesi_jam_idx" ON "terapi"."sesi"("jam");

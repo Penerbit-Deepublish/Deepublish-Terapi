@@ -4,7 +4,7 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  await prisma.$executeRawUnsafe('CREATE SCHEMA IF NOT EXISTS "hris"');
+  await prisma.$executeRawUnsafe('CREATE SCHEMA IF NOT EXISTS "terapi"');
 
   const adminEmail = process.env.ADMIN_EMAIL || "admin@terapi.local";
   const adminPassword = process.env.ADMIN_PASSWORD || "admin123";

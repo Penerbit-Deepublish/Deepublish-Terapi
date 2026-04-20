@@ -1,8 +1,8 @@
 -- CreateSchema
-CREATE SCHEMA IF NOT EXISTS "hris";
+CREATE SCHEMA IF NOT EXISTS "terapi";
 
 -- CreateTable
-CREATE TABLE "hris"."terapi" (
+CREATE TABLE "terapi"."terapi" (
     "id" UUID NOT NULL,
     "nama_lengkap" TEXT NOT NULL,
     "nomor_hp" TEXT,
@@ -28,7 +28,7 @@ CREATE TABLE "hris"."terapi" (
 );
 
 -- CreateTable
-CREATE TABLE "hris"."admin_users" (
+CREATE TABLE "terapi"."admin_users" (
     "id" UUID NOT NULL,
     "email" TEXT NOT NULL,
     "password_hash" TEXT NOT NULL,
@@ -37,7 +37,7 @@ CREATE TABLE "hris"."admin_users" (
 );
 
 -- CreateTable
-CREATE TABLE "hris"."kuota" (
+CREATE TABLE "terapi"."kuota" (
     "id" UUID NOT NULL,
     "tanggal" DATE NOT NULL,
     "kuota_max" INTEGER NOT NULL,
@@ -47,7 +47,7 @@ CREATE TABLE "hris"."kuota" (
 );
 
 -- CreateTable
-CREATE TABLE "hris"."sesi" (
+CREATE TABLE "terapi"."sesi" (
     "id" UUID NOT NULL,
     "jam" TEXT NOT NULL,
     "kapasitas" INTEGER NOT NULL,
@@ -57,22 +57,22 @@ CREATE TABLE "hris"."sesi" (
 );
 
 -- CreateIndex
-CREATE INDEX "terapi_tanggal_terapi_idx" ON "hris"."terapi"("tanggal_terapi");
+CREATE INDEX "terapi_tanggal_terapi_idx" ON "terapi"."terapi"("tanggal_terapi");
 
 -- CreateIndex
-CREATE INDEX "terapi_tanggal_terapi_jam_sesi_idx" ON "hris"."terapi"("tanggal_terapi", "jam_sesi");
+CREATE INDEX "terapi_tanggal_terapi_jam_sesi_idx" ON "terapi"."terapi"("tanggal_terapi", "jam_sesi");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "admin_users_email_key" ON "hris"."admin_users"("email");
+CREATE UNIQUE INDEX "admin_users_email_key" ON "terapi"."admin_users"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "kuota_tanggal_key" ON "hris"."kuota"("tanggal");
+CREATE UNIQUE INDEX "kuota_tanggal_key" ON "terapi"."kuota"("tanggal");
 
 -- CreateIndex
-CREATE INDEX "kuota_tanggal_idx" ON "hris"."kuota"("tanggal");
+CREATE INDEX "kuota_tanggal_idx" ON "terapi"."kuota"("tanggal");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "sesi_jam_key" ON "hris"."sesi"("jam");
+CREATE UNIQUE INDEX "sesi_jam_key" ON "terapi"."sesi"("jam");
 
 -- CreateIndex
-CREATE INDEX "sesi_jam_idx" ON "hris"."sesi"("jam");
+CREATE INDEX "sesi_jam_idx" ON "terapi"."sesi"("jam");

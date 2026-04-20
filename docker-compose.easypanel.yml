@@ -10,7 +10,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/terapi?schema=hris
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/terapi?schema=terapi
       JWT_SECRET: change-this-to-a-long-random-secret
       JWT_EXPIRES_IN: 12h
       ADMIN_EMAIL: admin@terapi.local

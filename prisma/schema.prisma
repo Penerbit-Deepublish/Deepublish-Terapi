@@ -5,7 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["hris"]
+  schemas  = ["terapi"]
 }
 
 model Terapi {
@@ -36,7 +36,7 @@ model Terapi {
   @@index([tanggalTerapi, jamSesi])
   @@index([jadwalTerapiId])
   @@map("terapi")
-  @@schema("hris")
+  @@schema("terapi")
 }
 
 model AdminUser {
@@ -45,7 +45,7 @@ model AdminUser {
   passwordHash String @map("password_hash") @db.Text
 
   @@map("admin_users")
-  @@schema("hris")
+  @@schema("terapi")
 }
 
 model Kuota {
@@ -56,7 +56,7 @@ model Kuota {
 
   @@index([tanggal])
   @@map("kuota")
-  @@schema("hris")
+  @@schema("terapi")
 }
 
 model Sesi {
@@ -68,7 +68,7 @@ model Sesi {
 
   @@index([jam])
   @@map("sesi")
-  @@schema("hris")
+  @@schema("terapi")
 }
 
 model JadwalTerapi {
@@ -87,5 +87,5 @@ model JadwalTerapi {
   @@index([tanggal])
   @@index([sesiId])
   @@map("jadwal_terapi")
-  @@schema("hris")
+  @@schema("terapi")
 }
