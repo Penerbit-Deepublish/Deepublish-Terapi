@@ -23,7 +23,7 @@ export default function ManageKuota() {
   const [singleEdits, setSingleEdits] = useState<Record<string, number>>({});
   const [tanggalMulai, setTanggalMulai] = useState("");
   const [tanggalSelesai, setTanggalSelesai] = useState("");
-  const [kuotaMassal, setKuotaMassal] = useState(10);
+  const [kuotaMassal, setKuotaMassal] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -68,7 +68,12 @@ export default function ManageKuota() {
       setError("Tanggal selesai tidak boleh lebih kecil dari tanggal mulai.");
       return;
     }
-    if (kuotaMassal < 1) {
+    if (!kuotaMassal.trim()) {
+      setError("Kuota maksimum per hari wajib diisi.");
+      return;
+    }
+    const kuotaMassalNumber = Number(kuotaMassal);
+    if (!Number.isFinite(kuotaMassalNumber) || kuotaMassalNumber < 1) {
       setError("Kuota maksimum per hari minimal 1.");
       return;
     }
@@ -79,7 +84,7 @@ export default function ManageKuota() {
       body: JSON.stringify({
         tanggal_mulai: tanggalMulai,
         tanggal_selesai: tanggalSelesai,
-        kuota_max: kuotaMassal,
+        kuota_max: kuotaMassalNumber,
       }),
     });
     const json = await res.json();
@@ -171,8 +176,9 @@ export default function ManageKuota() {
               <Input
                 type="number"
                 value={kuotaMassal}
+                placeholder="Contoh: 10"
                 min={1}
-                onChange={(e) => setKuotaMassal(Number(e.target.value || 1))}
+                onChange={(e) => setKuotaMassal(e.target.value)}
               />
             </div>
             <Button className="w-full mt-4" onClick={applyMassal}>

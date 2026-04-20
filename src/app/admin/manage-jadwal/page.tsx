@@ -31,7 +31,7 @@ async function parseJsonSafely(res: Response) {
 export default function ManageJadwalPage() {
   const [jadwal, setJadwal] = useState<JadwalTanggalItem[]>([]);
   const [tanggal, setTanggal] = useState("");
-  const [kuotaMax, setKuotaMax] = useState(10);
+  const [kuotaMax, setKuotaMax] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -71,11 +71,20 @@ export default function ManageJadwalPage() {
       setError("Tanggal wajib dipilih");
       return;
     }
+    if (!kuotaMax.trim()) {
+      setError("Kuota maksimum harian wajib diisi");
+      return;
+    }
+    const kuotaMaxNumber = Number(kuotaMax);
+    if (!Number.isFinite(kuotaMaxNumber) || kuotaMaxNumber < 1) {
+      setError("Kuota maksimum harian minimal 1");
+      return;
+    }
 
     const res = await fetch("/api/admin/kuota", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tanggal, kuota_max: kuotaMax }),
+      body: JSON.stringify({ tanggal, kuota_max: kuotaMaxNumber }),
     });
     const json = await parseJsonSafely(res);
 
@@ -140,8 +149,9 @@ export default function ManageJadwalPage() {
             <Input
               type="number"
               min={1}
+              placeholder="Contoh: 10"
               value={kuotaMax}
-              onChange={(e) => setKuotaMax(Number(e.target.value || 1))}
+              onChange={(e) => setKuotaMax(e.target.value)}
             />
           </div>
           <div className="flex items-end">

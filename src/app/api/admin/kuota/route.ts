@@ -54,6 +54,15 @@ export async function POST(req: NextRequest) {
     if (error instanceof Error && error.message === "INVALID_DATE_RANGE") {
       return fail("Invalid date range", 422);
     }
+
+    const prismaError = error as Prisma.PrismaClientKnownRequestError;
+    const isMissingTable =
+      prismaError?.code === "P2021" ||
+      (error instanceof Error && /relation .* does not exist/i.test(error.message));
+    if (isMissingTable) {
+      return fail("Database belum siap. Jalankan migrasi Prisma terlebih dahulu", 500);
+    }
+
     return fail("Failed to set quota", 500);
   }
 }

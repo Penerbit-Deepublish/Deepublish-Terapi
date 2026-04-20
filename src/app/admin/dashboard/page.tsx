@@ -38,6 +38,8 @@ type MetricCard = {
   icon: ComponentType<{ className?: string }>;
 };
 
+const MAX_PER_SESI = 4;
+
 function DashboardSkeleton() {
   return (
     <div className="space-y-6 animate-pulse">
@@ -121,7 +123,7 @@ export default function AdminDashboard() {
   const sesiData = data?.charts.penggunaan_kuota_per_sesi ?? [];
   const totalSesiAktif = sesiData.length;
   const totalBookingHariIni = sesiData.reduce((sum, item) => sum + item.terpakai, 0);
-  const kuotaHarian = sesiData.reduce((sum, item) => sum + item.terpakai + item.sisa, 0);
+  const kuotaHarian = totalSesiAktif * MAX_PER_SESI;
   const sisaKuotaHariIni = Math.max(0, kuotaHarian - totalBookingHariIni);
   const okupansiSesiPersen = kuotaHarian > 0
     ? Math.round((totalBookingHariIni / kuotaHarian) * 100)
@@ -140,15 +142,13 @@ export default function AdminDashboard() {
   const sessionStats = [...sesiData]
     .sort((a, b) => a.jam.localeCompare(b.jam))
     .map((item, idx) => {
-      const kapasitasPerSesi = Math.max(1, item.terpakai + item.sisa);
-      const terpakaiPerSesi = Math.min(item.terpakai, kapasitasPerSesi);
-      const percent = Math.round((terpakaiPerSesi / kapasitasPerSesi) * 100);
+      const terpakaiPerSesi = Math.min(item.terpakai, MAX_PER_SESI);
+      const percent = Math.round((terpakaiPerSesi / MAX_PER_SESI) * 100);
       return {
         ...item,
         label: item.jam,
-        kapasitasPerSesi,
         terpakaiPerSesi,
-        amount: `${terpakaiPerSesi}/${kapasitasPerSesi}`,
+        amount: `${terpakaiPerSesi}/${MAX_PER_SESI}`,
         percent,
         color: sessionColors[idx % sessionColors.length],
       };
@@ -314,7 +314,7 @@ export default function AdminDashboard() {
               <div className="mb-4 flex items-start justify-between">
                 <div>
                   <h3 className="text-xl font-semibold text-slate-900">Statistik Sesi Hari Ini</h3>
-                  <p className="text-sm text-slate-500">Distribusi booking per sesi (real-time)</p>
+                  <p className="text-sm text-slate-500">Distribusi booking per sesi (maks {MAX_PER_SESI} orang)</p>
                 </div>
                 <button
                   type="button"
@@ -353,7 +353,7 @@ export default function AdminDashboard() {
                           ))}
                         </Pie>
                         <Tooltip
-                          formatter={(value, _name, payload) => [`${value}/${payload?.payload?.kapasitasPerSesi ?? 1}`, "Terpakai"]}
+                          formatter={(value) => [`${value}/${MAX_PER_SESI}`, "Terpakai"]}
                           labelFormatter={(label) => `Sesi ${label}`}
                         />
                         <text x="50%" y="48%" textAnchor="middle" className="fill-slate-900 text-[15px] font-bold">
