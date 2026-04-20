@@ -43,7 +43,8 @@ const MAX_BOOKING_PER_GENDER_PER_SESSION = 2;
 const DEFAULT_SESSION_CAPACITY = MAX_BOOKING_PER_SESSION;
 
 function getEffectiveSessionCapacity(kapasitas: number) {
-  return Math.max(1, Math.min(kapasitas, MAX_BOOKING_PER_SESSION));
+  void kapasitas;
+  return MAX_BOOKING_PER_SESSION;
 }
 
 function normalizeJam(value: string) {

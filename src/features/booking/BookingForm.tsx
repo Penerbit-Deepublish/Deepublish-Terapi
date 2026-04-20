@@ -312,8 +312,11 @@ export function BookingForm() {
         </p>
       )}
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="p-6 md:p-8 space-y-8">
-        <fieldset disabled={isReservationDisabled} className={cn(isReservationDisabled && "pointer-events-none opacity-80")}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="p-6 md:p-8 space-y-7">
+        <fieldset
+          disabled={isReservationDisabled}
+          className={cn("space-y-6 md:space-y-7", isReservationDisabled && "pointer-events-none opacity-80")}
+        >
         <div className="space-y-3">
           <Label>Nama Lengkap</Label>
           <Input
@@ -484,7 +487,7 @@ export function BookingForm() {
             control={form.control}
             name="keluhanLuar"
             render={({ field }) => (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {(KELUHAN_LUAR_OPTIONS as readonly string[]).map((opt) => (
                     <label
@@ -513,7 +516,7 @@ export function BookingForm() {
             )}
           />
           {selectedKeluhanLuar.includes(OTHER_OPTION) && (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label>Yang lain (Keluhan Luar)</Label>
               <Input
                 {...form.register("keluhanLuarLainnya")}
@@ -533,7 +536,7 @@ export function BookingForm() {
             control={form.control}
             name="keluhanDalam"
             render={({ field }) => (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {(KELUHAN_DALAM_OPTIONS as readonly string[]).map((opt) => (
                     <label
@@ -562,7 +565,7 @@ export function BookingForm() {
             )}
           />
           {selectedKeluhanDalam.includes(OTHER_OPTION) && (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label>Yang lain (Keluhan Dalam)</Label>
               <Input
                 {...form.register("keluhanDalamLainnya")}
@@ -598,7 +601,7 @@ export function BookingForm() {
                     Semua kuota pada tanggal aktif sudah penuh.
                   </p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <Select value={field.value ?? ""} onValueChange={field.onChange}>
                       <SelectTrigger
                         size="default"

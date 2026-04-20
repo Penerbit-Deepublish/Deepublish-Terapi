@@ -7,7 +7,8 @@ import { getQuotaByDate } from "@/lib/services/booking";
 const MAX_BOOKING_PER_SESSION = 4;
 
 function getEffectiveSessionCapacity(kapasitas: number) {
-  return Math.max(1, Math.min(kapasitas, MAX_BOOKING_PER_SESSION));
+  void kapasitas;
+  return MAX_BOOKING_PER_SESSION;
 }
 
 export async function getDashboardData(input?: { from?: string; to?: string }) {
