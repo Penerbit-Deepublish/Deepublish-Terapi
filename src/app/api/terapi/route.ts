@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
     if (error instanceof Error) {
       if (error.message === "SESI_NOT_FOUND") return fail("Sesi tidak ditemukan", 404);
       if (error.message === "SESI_FULL") return fail("Sesi penuh", 409);
+      if (error.message === "GENDER_QUOTA_FULL") return fail("Kuota sesi untuk jenis kelamin ini sudah penuh", 409);
       if (error.message === "QUOTA_FULL") return fail("Kuota penuh", 409);
       if (error.message === "SCHEDULE_NOT_FOUND") return fail("Jadwal tanggal belum dibuka admin", 409);
     }

@@ -34,7 +34,8 @@ const DEFAULT_SESSION_TIMES = [
   "15:00 - 16:00",
 ] as const;
 
-const MAX_BOOKING_PER_SESSION = 2;
+const MAX_BOOKING_PER_SESSION = 4;
+const MAX_BOOKING_PER_GENDER_PER_SESSION = 2;
 const DEFAULT_SESSION_CAPACITY = MAX_BOOKING_PER_SESSION;
 
 function getEffectiveSessionCapacity(kapasitas: number) {
@@ -201,7 +202,7 @@ export async function createBooking(input: BookingApiInput) {
     "Klinik Utama Bio Elektrik Deepublish";
 
   return prisma.$transaction(async (tx) => {
-    const [session, existingQuota, sessionBookings, dailyBookings] = await Promise.all([
+    const [session, existingQuota, sessionBookings, dailyBookings, sameGenderSessionBookings] = await Promise.all([
       tx.sesi.findUnique({ where: { id: input.sesi_id } }),
       tx.kuota.findUnique({ where: { tanggal } }),
       tx.terapi.count({
@@ -215,6 +216,13 @@ export async function createBooking(input: BookingApiInput) {
           tanggalTerapi: tanggal,
         },
       }),
+      tx.terapi.count({
+        where: {
+          tanggalTerapi: tanggal,
+          jamSesi: input.sesi_id,
+          jenisKelamin: input.jenis_kelamin,
+        },
+      }),
     ]);
 
     if (!session) {
@@ -224,6 +232,9 @@ export async function createBooking(input: BookingApiInput) {
     const sessionCapacity = getEffectiveSessionCapacity(session.kapasitas);
     if (sessionBookings >= sessionCapacity) {
       throw new Error("SESI_FULL");
+    }
+    if (sameGenderSessionBookings >= MAX_BOOKING_PER_GENDER_PER_SESSION) {
+      throw new Error("GENDER_QUOTA_FULL");
     }
 
     const quotaMax = existingQuota?.kuotaMax ?? 0;

@@ -56,6 +56,30 @@ describe("terapi routes", () => {
     expect(res.status).toBe(409);
   });
 
+  it("returns 409 when gender quota in session is full", async () => {
+    createBookingMock.mockRejectedValueOnce(new Error("GENDER_QUOTA_FULL"));
+
+    const req = new NextRequest("http://localhost/api/terapi", {
+      method: "POST",
+      body: JSON.stringify({
+        nama_lengkap: "Nama Pasien",
+        departemen: "Produksi",
+        status_kepesertaan: "KARYAWAN",
+        tanggal_terapi: "2026-04-20",
+        tanggal_lahir: "1990-01-01",
+        jenis_kelamin: "L",
+        paket: "LENGKAP",
+        keluhan_luar: ["Stroke"],
+        keluhan_dalam: [],
+        sesi_id: "550e8400-e29b-41d4-a716-446655440000",
+      }),
+      headers: { "content-type": "application/json" },
+    });
+
+    const res = await postTerapi(req);
+    expect(res.status).toBe(409);
+  });
+
   it("loads quota by date", async () => {
     getQuotaMock.mockResolvedValueOnce({
       tanggal: "2026-04-13",

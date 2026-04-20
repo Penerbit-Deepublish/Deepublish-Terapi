@@ -28,7 +28,7 @@ export const setKuotaSchema = z
 export const setSesiSchema = z.object({
   id: z.uuid().optional(),
   jam: z.string().trim().min(3),
-  kapasitas: z.number().int().min(1).max(2),
+  kapasitas: z.number().int().min(1).max(4),
 });
 
 export const pesertaQuerySchema = z.object({

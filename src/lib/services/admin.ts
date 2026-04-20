@@ -4,7 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { addDays, formatDateOnly, parseDateOnly, startOfTodayUtc } from "@/lib/services/date";
 import { getQuotaByDate } from "@/lib/services/booking";
 
-const MAX_BOOKING_PER_SESSION = 2;
+const MAX_BOOKING_PER_SESSION = 4;
 
 function getEffectiveSessionCapacity(kapasitas: number) {
   return Math.max(1, Math.min(kapasitas, MAX_BOOKING_PER_SESSION));
