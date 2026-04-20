@@ -720,7 +720,7 @@ export function BookingForm() {
                                   isSelected ? "text-amber-200" : "text-amber-600",
                                 )}
                               >
-                                Penuh ({slot?.terisi ?? 0}/{slot?.kapasitas ?? 0})
+                                Penuh
                               </span>
                             )}
                             {isConfigured && !isFull && (
