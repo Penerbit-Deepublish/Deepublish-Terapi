@@ -723,9 +723,14 @@ export function BookingForm() {
                                 Penuh
                               </span>
                             )}
-                            {isConfigured && !isFull && (
-                              <span className="block text-[11px] mt-1 font-medium text-[#185cab]">
-                                L {slot?.terisi_laki ?? 0}/2 • P {slot?.terisi_wanita ?? 0}/2
+                            {isConfigured && (
+                              <span
+                                className={cn(
+                                  "block text-[11px] mt-1 font-medium",
+                                  isSelected ? "text-white/90" : "text-[#185cab]",
+                                )}
+                              >
+                                Sisa Laki-laki: {slot?.sisa_laki ?? 0} • Sisa Perempuan: {slot?.sisa_wanita ?? 0}
                               </span>
                             )}
                           </button>
