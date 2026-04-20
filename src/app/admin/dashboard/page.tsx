@@ -25,7 +25,13 @@ interface DashboardResponse {
   };
   charts: {
     tren_reservasi_harian: Array<{ tanggal: string; total: number }>;
-    penggunaan_kuota_per_sesi: Array<{ jam: string; terpakai: number; sisa: number }>;
+    penggunaan_kuota_per_sesi: Array<{
+      jam: string;
+      terpakai: number;
+      terpakai_laki: number;
+      terpakai_wanita: number;
+      sisa: number;
+    }>;
   };
 }
 
@@ -149,6 +155,7 @@ export default function AdminDashboard() {
         label: item.jam,
         terpakaiPerSesi,
         amount: `${terpakaiPerSesi}/${MAX_PER_SESI}`,
+        genderAmount: `L ${Math.min(item.terpakai_laki, 2)}/2 • P ${Math.min(item.terpakai_wanita, 2)}/2`,
         percent,
         color: sessionColors[idx % sessionColors.length],
       };
@@ -381,7 +388,10 @@ export default function AdminDashboard() {
                       <p className="text-sm font-medium text-slate-700">{item.label}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-slate-900">{item.amount}</p>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-slate-900">{item.amount}</p>
+                        <p className="text-[10px] font-medium text-slate-500">{item.genderAmount}</p>
+                      </div>
                       <span className="rounded-full bg-[#dff0ff] px-1.5 py-0.5 text-[10px] font-semibold text-[#185cab]">
                         {item.percent}%
                       </span>

@@ -7,6 +7,10 @@ export interface SessionAvailability {
   jam: string;
   kapasitas: number;
   terisi: number;
+  terisi_laki: number;
+  terisi_wanita: number;
+  sisa_laki: number;
+  sisa_wanita: number;
   tersedia: boolean;
 }
 
@@ -121,7 +125,10 @@ export async function getQuotaByRange(dateFrom: string, dateTo: string) {
   return getQuotaSnapshotsForRange(from, to);
 }
 
-export async function getSesiAvailability(dateString: string): Promise<SessionAvailability[]> {
+export async function getSesiAvailability(
+  dateString: string,
+  jenisKelamin?: "L" | "P",
+): Promise<SessionAvailability[]> {
   const tanggal = parseDateOnly(dateString);
   await ensureDefaultSessions();
 
@@ -129,25 +136,42 @@ export async function getSesiAvailability(dateString: string): Promise<SessionAv
     prisma.sesi.findMany({ orderBy: { jam: "asc" } }),
     prisma.terapi.findMany({
       where: { tanggalTerapi: tanggal },
-      select: { jamSesi: true },
+      select: { jamSesi: true, jenisKelamin: true },
     }),
   ]);
 
-  const bookedMap = bookings.reduce<Record<string, number>>((acc, item) => {
-    acc[item.jamSesi] = (acc[item.jamSesi] || 0) + 1;
+  const bookedMap = bookings.reduce<Record<string, { total: number; laki: number; wanita: number }>>((acc, item) => {
+    acc[item.jamSesi] = acc[item.jamSesi] || { total: 0, laki: 0, wanita: 0 };
+    acc[item.jamSesi].total += 1;
+    if (item.jenisKelamin === "L") acc[item.jamSesi].laki += 1;
+    if (item.jenisKelamin === "P") acc[item.jamSesi].wanita += 1;
     return acc;
   }, {});
 
   return sessions.map((s) => {
-    const terisiTanggal = bookedMap[s.id] ?? 0;
+    const bookingRow = bookedMap[s.id] || { total: 0, laki: 0, wanita: 0 };
+    const terisiTanggal = bookingRow.total;
     const kapasitas = getEffectiveSessionCapacity(s.kapasitas);
+    const sisaLaki = Math.max(0, MAX_BOOKING_PER_GENDER_PER_SESSION - bookingRow.laki);
+    const sisaWanita = Math.max(0, MAX_BOOKING_PER_GENDER_PER_SESSION - bookingRow.wanita);
+    const sisaTotal = Math.max(0, kapasitas - terisiTanggal);
+    const tersediaUntukGender =
+      jenisKelamin === "L"
+        ? sisaTotal > 0 && sisaLaki > 0
+        : jenisKelamin === "P"
+          ? sisaTotal > 0 && sisaWanita > 0
+          : sisaTotal > 0;
 
     return {
       id: s.id,
       jam: s.jam,
       kapasitas,
       terisi: terisiTanggal,
-      tersedia: terisiTanggal < kapasitas,
+      terisi_laki: bookingRow.laki,
+      terisi_wanita: bookingRow.wanita,
+      sisa_laki: sisaLaki,
+      sisa_wanita: sisaWanita,
+      tersedia: tersediaUntukGender,
     };
   });
 }

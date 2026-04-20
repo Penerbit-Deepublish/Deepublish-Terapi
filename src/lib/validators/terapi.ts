@@ -50,6 +50,8 @@ export const quotaQuerySchema = z.object({
   tanggal: z.string().regex(dateRegex),
 });
 
-export const sesiQuerySchema = quotaQuerySchema;
+export const sesiQuerySchema = quotaQuerySchema.extend({
+  jenis_kelamin: z.enum(["L", "P"]).optional(),
+});
 
 export type BookingApiInput = z.infer<typeof bookingApiSchema>;

@@ -33,7 +33,7 @@ export async function getDashboardData(input?: { from?: string; to?: string }) {
       where: { tanggalTerapi: { gte: rangeStart, lte: rangeEnd } },
       select: { tanggalTerapi: true },
     }),
-    prisma.terapi.findMany({ where: { tanggalTerapi: rangeEnd }, select: { jamSesi: true } }),
+    prisma.terapi.findMany({ where: { tanggalTerapi: rangeEnd }, select: { jamSesi: true, jenisKelamin: true } }),
   ]);
 
   const dailyMap = new Map<string, number>();
@@ -47,8 +47,11 @@ export async function getDashboardData(input?: { from?: string; to?: string }) {
     dailyMap.set(key, (dailyMap.get(key) || 0) + 1);
   }
 
-  const todayMap = todayBookings.reduce<Record<string, number>>((acc, item) => {
-    acc[item.jamSesi] = (acc[item.jamSesi] || 0) + 1;
+  const todayMap = todayBookings.reduce<Record<string, { total: number; laki: number; wanita: number }>>((acc, item) => {
+    acc[item.jamSesi] = acc[item.jamSesi] || { total: 0, laki: 0, wanita: 0 };
+    acc[item.jamSesi].total += 1;
+    if (item.jenisKelamin === "L") acc[item.jamSesi].laki += 1;
+    if (item.jenisKelamin === "P") acc[item.jamSesi].wanita += 1;
     return acc;
   }, {});
 
@@ -64,12 +67,15 @@ export async function getDashboardData(input?: { from?: string; to?: string }) {
         total,
       })),
       penggunaan_kuota_per_sesi: sessions.map((item) => {
-        const terpakai = todayMap[item.id] ?? 0;
+        const usage = todayMap[item.id] || { total: 0, laki: 0, wanita: 0 };
+        const terpakai = usage.total;
         const kapasitas = getEffectiveSessionCapacity(item.kapasitas);
         return {
           sesi_id: item.id,
           jam: item.jam,
           terpakai,
+          terpakai_laki: usage.laki,
+          terpakai_wanita: usage.wanita,
           sisa: Math.max(0, kapasitas - terpakai),
         };
       }),

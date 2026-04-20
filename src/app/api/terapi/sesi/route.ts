@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const data = await getSesiAvailability(parsed.data.tanggal);
+    const data = await getSesiAvailability(parsed.data.tanggal, parsed.data.jenis_kelamin);
     return ok(data);
   } catch {
     return fail("Failed to load sesi", 500);

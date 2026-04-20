@@ -65,6 +65,10 @@ type ApiSesiItem = {
   jam: string;
   kapasitas: number;
   terisi: number;
+  terisi_laki: number;
+  terisi_wanita: number;
+  sisa_laki: number;
+  sisa_wanita: number;
   tersedia: boolean;
 };
 
@@ -124,6 +128,8 @@ export function BookingForm() {
     useWatch({ control: form.control, name: "keluhanDalam" }) ?? [];
   const selectedTanggalSesi =
     useWatch({ control: form.control, name: "tanggalSesi" }) ?? "";
+  const selectedJenisKelamin =
+    useWatch({ control: form.control, name: "jenisKelamin" }) ?? undefined;
   const tersediaTanggal = availableDates.filter((item) => item.sisa > 0);
   const isAllQuotaFull = availableDates.length > 0 && tersediaTanggal.length === 0;
   const isReservationDisabled = isAllQuotaFull;
@@ -165,7 +171,11 @@ export function BookingForm() {
       setSessionsError("");
       form.setValue("jamSesi", "");
       try {
-        const res = await fetch(`/api/terapi/sesi?tanggal=${encodeURIComponent(selectedTanggalSesi)}`);
+        const params = new URLSearchParams({ tanggal: selectedTanggalSesi });
+        if (selectedJenisKelamin) {
+          params.set("jenis_kelamin", selectedJenisKelamin);
+        }
+        const res = await fetch(`/api/terapi/sesi?${params.toString()}`);
         const json = await res.json();
         if (!res.ok || !json.success) {
           setSessionsError(json.message || "Gagal memuat jam kehadiran");
@@ -187,7 +197,7 @@ export function BookingForm() {
     };
 
     void load();
-  }, [selectedTanggalSesi, form]);
+  }, [selectedTanggalSesi, selectedJenisKelamin, form]);
 
   const onSubmit = async (data: BookingFormValues) => {
     setSubmitError("");
@@ -708,6 +718,11 @@ export function BookingForm() {
                                 )}
                               >
                                 Penuh ({slot?.terisi ?? 0}/{slot?.kapasitas ?? 0})
+                              </span>
+                            )}
+                            {isConfigured && !isFull && (
+                              <span className="block text-[11px] mt-1 font-medium text-[#185cab]">
+                                L {slot?.terisi_laki ?? 0}/2 • P {slot?.terisi_wanita ?? 0}/2
                               </span>
                             )}
                           </button>
