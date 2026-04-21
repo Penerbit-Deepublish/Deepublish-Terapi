@@ -325,8 +325,14 @@ export default function RiwayatPeserta() {
                     <Label>Status Kepesertaan</Label>
                     <Select
                       value={editing.status_kepesertaan}
-                      onValueChange={(value: "KARYAWAN" | "KELUARGA") =>
-                        setEditing((prev) => (prev ? { ...prev, status_kepesertaan: value } : prev))
+                      onValueChange={(value) =>
+                        setEditing((prev) => {
+                          if (!prev) return prev;
+                          if (value === "KARYAWAN" || value === "KELUARGA") {
+                            return { ...prev, status_kepesertaan: value };
+                          }
+                          return { ...prev, status_kepesertaan: "" };
+                        })
                       }
                     >
                       <SelectTrigger>
@@ -361,8 +367,14 @@ export default function RiwayatPeserta() {
                     <Label>Jenis Kelamin</Label>
                     <Select
                       value={editing.jenis_kelamin}
-                      onValueChange={(value: "L" | "P") =>
-                        setEditing((prev) => (prev ? { ...prev, jenis_kelamin: value } : prev))
+                      onValueChange={(value) =>
+                        setEditing((prev) => {
+                          if (!prev) return prev;
+                          if (value === "L" || value === "P") {
+                            return { ...prev, jenis_kelamin: value };
+                          }
+                          return { ...prev, jenis_kelamin: "" };
+                        })
                       }
                     >
                       <SelectTrigger>
@@ -379,8 +391,8 @@ export default function RiwayatPeserta() {
                     <Label>Jam Kehadiran</Label>
                     <Select
                       value={editing.sesi_id}
-                      onValueChange={(value: string) =>
-                        setEditing((prev) => (prev ? { ...prev, sesi_id: value } : prev))
+                      onValueChange={(value) =>
+                        setEditing((prev) => (prev ? { ...prev, sesi_id: value ?? "" } : prev))
                       }
                     >
                       <SelectTrigger>
@@ -398,8 +410,14 @@ export default function RiwayatPeserta() {
                     <Label>Paket</Label>
                     <Select
                       value={editing.paket}
-                      onValueChange={(value: "LENGKAP" | "SEBAGIAN") =>
-                        setEditing((prev) => (prev ? { ...prev, paket: value } : prev))
+                      onValueChange={(value) =>
+                        setEditing((prev) => {
+                          if (!prev) return prev;
+                          if (value === "LENGKAP" || value === "SEBAGIAN") {
+                            return { ...prev, paket: value };
+                          }
+                          return { ...prev, paket: "" };
+                        })
                       }
                     >
                       <SelectTrigger>
