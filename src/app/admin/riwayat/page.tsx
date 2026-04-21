@@ -221,13 +221,9 @@ export default function RiwayatPeserta() {
       sesi_id: editing.sesi_id,
       paket: editing.paket,
       keluhan_luar: editing.keluhan_luar.filter((item) => item !== OTHER_OPTION),
-      keluhan_luar_lainnya: editing.keluhan_luar.includes(OTHER_OPTION)
-        ? editing.keluhan_luar_lainnya.trim() || undefined
-        : undefined,
+      keluhan_luar_lainnya: editing.keluhan_luar_lainnya.trim() || undefined,
       keluhan_dalam: editing.keluhan_dalam.filter((item) => item !== OTHER_OPTION),
-      keluhan_dalam_lainnya: editing.keluhan_dalam.includes(OTHER_OPTION)
-        ? editing.keluhan_dalam_lainnya.trim() || undefined
-        : undefined,
+      keluhan_dalam_lainnya: editing.keluhan_dalam_lainnya.trim() || undefined,
     };
 
     setIsSubmitting(true);
@@ -239,10 +235,10 @@ export default function RiwayatPeserta() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        const detailMessage = json?.details?.formErrors?.[0]
-          || json?.details?.fieldErrors?.sesi_id?.[0]
-          || json?.details?.fieldErrors?.tanggal_terapi?.[0]
-          || json?.details?.fieldErrors?.tanggal_lahir?.[0];
+        const firstFieldError = Object.values(json?.details?.fieldErrors ?? {}).find(
+          (messages): messages is string[] => Array.isArray(messages) && messages.length > 0,
+        )?.[0];
+        const detailMessage = json?.details?.formErrors?.[0] || firstFieldError;
         setError(detailMessage || json.message || "Gagal memperbarui peserta");
         return;
       }
