@@ -13,6 +13,12 @@ async function main() {
       role: "imbsadmin",
       password: "AdminIMBS@123",
     },
+    {
+      name: "Admin Deepublish",
+      email: "admin@deepublish.com",
+      role: "deepublishadmin",
+      password: "Admin@123",
+    },
   ];
 
   if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
