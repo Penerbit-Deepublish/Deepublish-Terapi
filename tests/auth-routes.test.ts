@@ -63,7 +63,7 @@ describe("auth routes", () => {
       email: "admin@x.com",
       passwordHash: "hash",
     } as never);
-    compareMock.mockResolvedValueOnce(true);
+    compareMock.mockResolvedValueOnce(true as never);
 
     const req = new NextRequest("http://localhost/api/auth/login", {
       method: "POST",

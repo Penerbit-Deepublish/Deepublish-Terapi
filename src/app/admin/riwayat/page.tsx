@@ -23,6 +23,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Pencil, Search, Trash2 } from "lucide-react";
+import {
+  isStatusKepesertaan,
+  STATUS_KEPESERTAAN_OPTIONS,
+  type StatusKepesertaan,
+} from "@/lib/kepesertaan";
 
 interface PesertaItem {
   id: string;
@@ -30,7 +35,7 @@ interface PesertaItem {
   tanggal_terapi: string;
   sesi_id: string;
   departemen: string | null;
-  status_kepesertaan: "KARYAWAN" | "KELUARGA" | null;
+  status_kepesertaan: StatusKepesertaan | null;
   tanggal_lahir: string | null;
   jenis_kelamin: "L" | "P";
   jam_kehadiran: string;
@@ -57,7 +62,7 @@ interface EditFormState {
   id: string;
   nama_lengkap: string;
   departemen: string;
-  status_kepesertaan: "KARYAWAN" | "KELUARGA" | "";
+  status_kepesertaan: StatusKepesertaan | "";
   tanggal_terapi: string;
   tanggal_lahir: string;
   jenis_kelamin: "L" | "P" | "";
@@ -324,7 +329,7 @@ export default function RiwayatPeserta() {
                       onValueChange={(value) =>
                         setEditing((prev) => {
                           if (!prev) return prev;
-                          if (value === "KARYAWAN" || value === "KELUARGA") {
+                          if (isStatusKepesertaan(value)) {
                             return { ...prev, status_kepesertaan: value };
                           }
                           return { ...prev, status_kepesertaan: "" };
@@ -335,8 +340,11 @@ export default function RiwayatPeserta() {
                         <SelectValue placeholder="Pilih status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="KARYAWAN">Karyawan</SelectItem>
-                        <SelectItem value="KELUARGA">Keluarga</SelectItem>
+                        {STATUS_KEPESERTAAN_OPTIONS.map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

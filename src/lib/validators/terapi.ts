@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { STATUS_KEPESERTAAN_OPTIONS } from "@/lib/kepesertaan";
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
 export const bookingApiSchema = z.object({
   nama_lengkap: z.string().trim().min(3),
   departemen: z.string().trim().min(1),
-  status_kepesertaan: z.enum(["KARYAWAN", "KELUARGA"]),
+  status_kepesertaan: z.enum(STATUS_KEPESERTAAN_OPTIONS),
   tanggal_terapi: z.string().regex(dateRegex),
   tanggal_lahir: z.string().regex(dateRegex),
   jenis_kelamin: z.enum(["L", "P"]),

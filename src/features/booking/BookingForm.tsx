@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { STATUS_KEPESERTAAN_OPTIONS } from "@/lib/kepesertaan";
 
 const OTHER_OPTION = "Yang lain";
 
@@ -348,26 +349,23 @@ export function BookingForm() {
             name="statusKepesertaan"
             render={({ field }) => (
               <div>
-                <div className="flex gap-4">
-                  {([
-                    { id: "KARYAWAN", label: "Karyawan" },
-                    { id: "KELUARGA", label: "Keluarga" },
-                  ] as const).map((opt) => {
-                    const isSelected = field.value === opt.id;
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {STATUS_KEPESERTAAN_OPTIONS.map((opt) => {
+                    const isSelected = field.value === opt;
                     return (
                       <button
-                        key={opt.id}
+                        key={opt}
                         type="button"
-                        onClick={() => field.onChange(opt.id)}
+                        onClick={() => field.onChange(opt)}
                         className={cn(
-                          "flex-1 py-4 px-6 rounded-2xl border-2 transition-all duration-300 font-semibold",
+                          "min-h-14 rounded-2xl border-2 px-4 py-3 text-center font-semibold transition-all duration-300",
                           focusStrokeClass,
                           isSelected
                             ? "border-[#185cab] bg-[#185cab] text-white"
                             : "border-border bg-muted text-foreground hover:bg-muted/80",
                         )}
                       >
-                        {opt.label}
+                        {opt}
                       </button>
                     );
                   })}

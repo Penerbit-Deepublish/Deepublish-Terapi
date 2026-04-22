@@ -40,7 +40,7 @@ describe("terapi routes", () => {
       body: JSON.stringify({
         nama_lengkap: "Nama Pasien",
         departemen: "Produksi",
-        status_kepesertaan: "KARYAWAN",
+        status_kepesertaan: "Siswa",
         tanggal_terapi: "2026-04-20",
         tanggal_lahir: "1990-01-01",
         jenis_kelamin: "L",
@@ -64,7 +64,7 @@ describe("terapi routes", () => {
       body: JSON.stringify({
         nama_lengkap: "Nama Pasien",
         departemen: "Produksi",
-        status_kepesertaan: "KARYAWAN",
+        status_kepesertaan: "Siswa",
         tanggal_terapi: "2026-04-20",
         tanggal_lahir: "1990-01-01",
         jenis_kelamin: "L",
@@ -98,7 +98,17 @@ describe("terapi routes", () => {
 
   it("loads sesi availability", async () => {
     getSesiMock.mockResolvedValueOnce([
-      { id: "1", jam: "09:00", kapasitas: 2, terisi: 1, tersedia: true },
+      {
+        id: "1",
+        jam: "09:00",
+        kapasitas: 2,
+        terisi: 1,
+        terisi_laki: 1,
+        terisi_wanita: 0,
+        sisa_laki: 0,
+        sisa_wanita: 1,
+        tersedia: true,
+      },
     ]);
 
     const req = new NextRequest("http://localhost/api/terapi/sesi?tanggal=2026-04-13");

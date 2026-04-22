@@ -1,9 +1,10 @@
 import * as z from "zod";
+import { STATUS_KEPESERTAAN_OPTIONS } from "@/lib/kepesertaan";
 
 export const bookingFormSchema = z.object({
   namaLengkap: z.string().trim().min(3, "Nama lengkap minimal 3 karakter"),
   departemen: z.string().trim().min(2, "Departemen minimal 2 karakter"),
-  statusKepesertaan: z.enum(["KARYAWAN", "KELUARGA"], { message: "Pilih status kepesertaan" }),
+  statusKepesertaan: z.enum(STATUS_KEPESERTAAN_OPTIONS, { message: "Pilih status kepesertaan" }),
   tanggalLahir: z.date({ message: "Tanggal lahir wajib dipilih" }),
   jenisKelamin: z.enum(["L", "P"], {
     message: "Pilih jenis kelamin",
