@@ -8,6 +8,7 @@ import { createPenggunaSchema, penggunaQuerySchema } from "@/lib/validators/admi
 export async function GET(req: NextRequest) {
   const admin = getAdminFromRequest(req);
   if (!admin) return fail("Unauthorized", 401);
+  if (admin.role !== "super") return fail("Forbidden", 403);
 
   const query = {
     page: req.nextUrl.searchParams.get("page") ?? 1,
@@ -35,6 +36,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const admin = getAdminFromRequest(req);
   if (!admin) return fail("Unauthorized", 401);
+  if (admin.role !== "super") return fail("Forbidden", 403);
 
   let body: unknown;
   try {

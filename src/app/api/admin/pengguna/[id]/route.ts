@@ -8,6 +8,7 @@ import { updatePenggunaSchema } from "@/lib/validators/admin";
 export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/admin/pengguna/[id]">) {
   const admin = getAdminFromRequest(req);
   if (!admin) return fail("Unauthorized", 401);
+  if (admin.role !== "super") return fail("Forbidden", 403);
 
   const { id } = await ctx.params;
 
@@ -37,6 +38,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/admin/peng
 export async function DELETE(req: NextRequest, ctx: RouteContext<"/api/admin/pengguna/[id]">) {
   const admin = getAdminFromRequest(req);
   if (!admin) return fail("Unauthorized", 401);
+  if (admin.role !== "super") return fail("Forbidden", 403);
 
   const { id } = await ctx.params;
 

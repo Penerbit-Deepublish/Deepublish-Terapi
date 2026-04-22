@@ -24,8 +24,11 @@ import {
 } from "@/components/ui/dialog";
 import { Pencil, Search, Trash2 } from "lucide-react";
 import {
+  INSTANSI_OPTIONS,
+  getStatusKepesertaanOptions,
+  isInstansi,
   isStatusKepesertaan,
-  STATUS_KEPESERTAAN_OPTIONS,
+  type Instansi,
   type StatusKepesertaan,
 } from "@/lib/kepesertaan";
 
@@ -35,6 +38,7 @@ interface PesertaItem {
   tanggal_terapi: string;
   sesi_id: string;
   departemen: string | null;
+  instansi: Instansi;
   status_kepesertaan: StatusKepesertaan | null;
   tanggal_lahir: string | null;
   jenis_kelamin: "L" | "P";
@@ -62,6 +66,7 @@ interface EditFormState {
   id: string;
   nama_lengkap: string;
   departemen: string;
+  instansi: Instansi | "";
   status_kepesertaan: StatusKepesertaan | "";
   tanggal_terapi: string;
   tanggal_lahir: string;
@@ -174,6 +179,7 @@ export default function RiwayatPeserta() {
       id: item.id,
       nama_lengkap: item.nama_lengkap,
       departemen: item.departemen || "",
+      instansi: item.instansi || "",
       status_kepesertaan: item.status_kepesertaan || "",
       tanggal_terapi: item.tanggal_terapi,
       tanggal_lahir: item.tanggal_lahir || "",
@@ -195,6 +201,7 @@ export default function RiwayatPeserta() {
 
     if (!editing.nama_lengkap.trim()) return setError("Nama lengkap wajib diisi");
     if (!editing.departemen.trim()) return setError("Departemen wajib diisi");
+    if (!editing.instansi) return setError("Instansi wajib dipilih");
     if (!editing.status_kepesertaan) return setError("Status kepesertaan wajib dipilih");
     if (!editing.tanggal_terapi) return setError("Tanggal terapi wajib diisi");
     if (!editing.tanggal_lahir) return setError("Tanggal lahir wajib diisi");
@@ -219,6 +226,7 @@ export default function RiwayatPeserta() {
     const payload = {
       nama_lengkap: editing.nama_lengkap,
       departemen: editing.departemen,
+      instansi: editing.instansi,
       status_kepesertaan: editing.status_kepesertaan,
       tanggal_terapi: editing.tanggal_terapi,
       tanggal_lahir: editing.tanggal_lahir,
@@ -274,6 +282,7 @@ export default function RiwayatPeserta() {
 
   const items = data?.items ?? [];
   const totalPages = data?.totalPages ?? 1;
+  const editStatusOptions = getStatusKepesertaanOptions(editing?.instansi ?? "");
 
   if (isLoading) {
     return (
@@ -323,7 +332,29 @@ export default function RiwayatPeserta() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Status Kepesertaan</Label>
+                    <Label>Instansi dan Status Kepesertaan</Label>
+                    <Select
+                      value={editing.instansi}
+                      onValueChange={(value) =>
+                        setEditing((prev) => {
+                          if (!prev) return prev;
+                          return isInstansi(value)
+                            ? { ...prev, instansi: value, status_kepesertaan: "" }
+                            : { ...prev, instansi: "", status_kepesertaan: "" };
+                        })
+                      }
+                    >
+                      <SelectTrigger className="mb-2">
+                        <SelectValue placeholder="Pilih instansi" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {INSTANSI_OPTIONS.map((instansi) => (
+                          <SelectItem key={instansi} value={instansi}>
+                            {instansi}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Select
                       value={editing.status_kepesertaan}
                       onValueChange={(value) =>
@@ -340,7 +371,7 @@ export default function RiwayatPeserta() {
                         <SelectValue placeholder="Pilih status" />
                       </SelectTrigger>
                       <SelectContent>
-                        {STATUS_KEPESERTAAN_OPTIONS.map((option) => (
+                        {editStatusOptions.map((option) => (
                           <SelectItem key={option} value={option}>
                             {option}
                           </SelectItem>
@@ -547,7 +578,7 @@ export default function RiwayatPeserta() {
               <div className="relative max-w-sm flex-1">
                 <Search className="text-muted-foreground absolute top-3 left-3 h-4 w-4" />
                 <Input
-                  placeholder="Cari nama, departemen, atau status..."
+                  placeholder="Cari nama, departemen, instansi, atau status..."
                   className="pl-9"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -581,6 +612,7 @@ export default function RiwayatPeserta() {
                     <TableCell>{item.tanggal_terapi}</TableCell>
                     <TableCell>
                       <div className="text-sm">{item.departemen || "-"}</div>
+                      <div className="text-sm font-semibold text-primary">{item.instansi}</div>
                       <div className="text-sm text-muted-foreground">{item.status_kepesertaan || "-"}</div>
                       <div className="text-xs text-muted-foreground">
                         {item.jenis_kelamin === "L" ? "Laki-laki" : "Perempuan"} • {item.tanggal_lahir || "-"}

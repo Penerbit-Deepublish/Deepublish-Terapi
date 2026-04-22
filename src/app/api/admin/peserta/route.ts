@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
     parsed.data.q,
     parsed.data.from,
     parsed.data.to,
+    admin.role,
   );
   return ok(data);
 }

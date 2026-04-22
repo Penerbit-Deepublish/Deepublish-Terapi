@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const data = await getDashboardData(parsed.data);
+    const data = await getDashboardData({ ...parsed.data, role: admin.role });
     return ok(data);
   } catch (error) {
     if (error instanceof Error && error.message === "INVALID_DATE_RANGE") {

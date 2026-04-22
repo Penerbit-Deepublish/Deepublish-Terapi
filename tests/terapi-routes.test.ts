@@ -40,6 +40,7 @@ describe("terapi routes", () => {
       body: JSON.stringify({
         nama_lengkap: "Nama Pasien",
         departemen: "Produksi",
+        instansi: "IMBS",
         status_kepesertaan: "Siswa",
         tanggal_terapi: "2026-04-20",
         tanggal_lahir: "1990-01-01",
@@ -64,6 +65,7 @@ describe("terapi routes", () => {
       body: JSON.stringify({
         nama_lengkap: "Nama Pasien",
         departemen: "Produksi",
+        instansi: "IMBS",
         status_kepesertaan: "Siswa",
         tanggal_terapi: "2026-04-20",
         tanggal_lahir: "1990-01-01",

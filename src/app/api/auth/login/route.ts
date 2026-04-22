@@ -7,6 +7,7 @@ import { fail, ok } from "@/app/api/_utils/http";
 import { AUTH_COOKIE, signAdminToken } from "@/lib/auth";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { DEFAULT_ADMIN_AVATAR } from "@/lib/constants";
+import { isAdminRole, type AdminRole } from "@/lib/admin-roles";
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req.headers);
@@ -30,16 +31,21 @@ export async function POST(req: NextRequest) {
   const envAdminEmail = process.env.ADMIN_EMAIL;
   const envAdminPassword = process.env.ADMIN_PASSWORD;
 
-  const issueToken = (sub: string, email: string) => {
-    const defaultName = email.split("@")[0] || "Admin";
+  const getEnvAdminRole = (): AdminRole => {
+    const role = process.env.ADMIN_ROLE;
+    return isAdminRole(role) ? role : "super";
+  };
+
+  const issueToken = (sub: string, email: string, role: AdminRole, name?: string) => {
+    const defaultName = name || email.split("@")[0] || "Admin";
     const token = signAdminToken({
       sub,
       email,
-      role: "admin",
+      role,
       name: defaultName,
       avatar: DEFAULT_ADMIN_AVATAR,
     });
-    const response = ok({ token, email });
+    const response = ok({ token, email, role });
     response.cookies.set({
       name: AUTH_COOKIE,
       value: token,
@@ -61,7 +67,7 @@ export async function POST(req: NextRequest) {
         parsed.data.email === envAdminEmail &&
         parsed.data.password === envAdminPassword
       ) {
-        return issueToken("env-admin", envAdminEmail);
+        return issueToken("env-admin", envAdminEmail, getEnvAdminRole(), process.env.ADMIN_NAME);
       }
       return fail("Email atau password salah", 401);
     }
@@ -71,7 +77,8 @@ export async function POST(req: NextRequest) {
       return fail("Email atau password salah", 401);
     }
 
-    return issueToken(user.id, user.email);
+    const role = isAdminRole(user.role) ? user.role : "super";
+    return issueToken(user.id, user.email, role, user.name);
   } catch (error) {
     // Bootstrapping fallback: if admin table doesn't exist yet, allow env admin login.
     const prismaError = error as Prisma.PrismaClientKnownRequestError;
@@ -86,7 +93,7 @@ export async function POST(req: NextRequest) {
       parsed.data.email === envAdminEmail &&
       parsed.data.password === envAdminPassword
     ) {
-      return issueToken("env-admin", envAdminEmail);
+      return issueToken("env-admin", envAdminEmail, getEnvAdminRole(), process.env.ADMIN_NAME);
     }
 
     return fail("Login gagal: konfigurasi database admin belum siap", 500);

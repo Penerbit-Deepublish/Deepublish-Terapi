@@ -5,6 +5,8 @@ import { addDays, formatDateOnly, parseDateOnly, startOfTodayUtc } from "@/lib/s
 import { getQuotaByDate } from "@/lib/services/booking";
 import type { z } from "zod";
 import { updatePesertaSchema } from "@/lib/validators/admin";
+import { getAdminInstansiScope, type AdminRole } from "@/lib/admin-roles";
+import type { Instansi } from "@/lib/kepesertaan";
 
 const MAX_BOOKING_PER_SESSION = 4;
 const MAX_BOOKING_PER_GENDER_PER_SESSION = 2;
@@ -18,7 +20,19 @@ function normalizeJam(value: string) {
   return value.replaceAll(".", ":").replace(/\s*-\s*/g, " - ").trim();
 }
 
-export async function getDashboardData(input?: { from?: string; to?: string }) {
+function buildInstansiScopeWhere(role?: AdminRole): Prisma.TerapiWhereInput {
+  const instansi = getAdminInstansiScope(role);
+  return instansi ? { instansi } : {};
+}
+
+function assertRoleCanAccessInstansi(role: AdminRole | undefined, instansi: string) {
+  const scopedInstansi = getAdminInstansiScope(role);
+  if (scopedInstansi && scopedInstansi !== instansi) {
+    throw new Error("FORBIDDEN_INSTANSI");
+  }
+}
+
+export async function getDashboardData(input?: { from?: string; to?: string; role?: AdminRole }) {
   const today = startOfTodayUtc();
   const rangeEnd = input?.to ? parseDateOnly(input.to) : today;
   const rangeStart = input?.from ? parseDateOnly(input.from) : addDays(rangeEnd, -6);
@@ -28,20 +42,24 @@ export async function getDashboardData(input?: { from?: string; to?: string }) {
   const monthStart = new Date(Date.UTC(rangeEnd.getUTCFullYear(), rangeEnd.getUTCMonth(), 1));
   const todayString = formatDateOnly(rangeEnd);
   const isFiltered = Boolean(input?.from || input?.to);
+  const scopedWhere = buildInstansiScopeWhere(input?.role);
 
   const [monthlyCount, todayQuota, sessions, weekBookings, todayBookings] = await Promise.all([
     prisma.terapi.count({
       where: isFiltered
-        ? { tanggalTerapi: { gte: rangeStart, lte: rangeEnd } }
-        : { createdAt: { gte: monthStart } },
+        ? { ...scopedWhere, tanggalTerapi: { gte: rangeStart, lte: rangeEnd } }
+        : { ...scopedWhere, createdAt: { gte: monthStart } },
     }),
     getQuotaByDate(todayString),
     prisma.sesi.findMany({ orderBy: { jam: "asc" } }),
     prisma.terapi.findMany({
-      where: { tanggalTerapi: { gte: rangeStart, lte: rangeEnd } },
+      where: { ...scopedWhere, tanggalTerapi: { gte: rangeStart, lte: rangeEnd } },
       select: { tanggalTerapi: true },
     }),
-    prisma.terapi.findMany({ where: { tanggalTerapi: rangeEnd }, select: { jamSesi: true, jenisKelamin: true } }),
+    prisma.terapi.findMany({
+      where: { ...scopedWhere, tanggalTerapi: rangeEnd },
+      select: { jamSesi: true, jenisKelamin: true },
+    }),
   ]);
 
   const dailyMap = new Map<string, number>();
@@ -239,12 +257,14 @@ export async function listPeserta(
   q?: string,
   dateFrom?: string,
   dateTo?: string,
+  role?: AdminRole,
 ) {
-  const where: Prisma.TerapiWhereInput = {};
+  const where: Prisma.TerapiWhereInput = buildInstansiScopeWhere(role);
   if (q) {
     where.OR = [
       { namaLengkap: { contains: q, mode: "insensitive" } },
       { departemen: { contains: q, mode: "insensitive" } },
+      { instansi: { contains: q, mode: "insensitive" } },
       { statusKepesertaan: { contains: q, mode: "insensitive" } },
     ];
   }
@@ -288,6 +308,7 @@ export async function listPeserta(
       tanggal_terapi: formatDateOnly(item.tanggalTerapi),
       sesi_id: resolvedSesiId,
       departemen: item.departemen,
+      instansi: item.instansi as Instansi,
       status_kepesertaan: item.statusKepesertaan,
       tanggal_lahir: item.tanggalLahir ? formatDateOnly(item.tanggalLahir) : null,
       jenis_kelamin: item.jenisKelamin,
@@ -317,7 +338,7 @@ function buildKeluhanCombined(input: {
   ];
 }
 
-export async function updatePeserta(id: string, input: z.infer<typeof updatePesertaSchema>) {
+export async function updatePeserta(id: string, input: z.infer<typeof updatePesertaSchema>, role?: AdminRole) {
   const tanggalTerapi = parseDateOnly(input.tanggal_terapi);
   const tanggalLahir = parseDateOnly(input.tanggal_lahir);
   const rawSesiInput = input.sesi_id.trim();
@@ -326,11 +347,13 @@ export async function updatePeserta(id: string, input: z.infer<typeof updatePese
   return prisma.$transaction(async (tx) => {
     const existing = await tx.terapi.findUnique({
       where: { id },
-      select: { id: true, tanggalTerapi: true, jamSesi: true, jenisKelamin: true },
+      select: { id: true, tanggalTerapi: true, jamSesi: true, jenisKelamin: true, instansi: true },
     });
     if (!existing) {
       return null;
     }
+    assertRoleCanAccessInstansi(role, existing.instansi);
+    assertRoleCanAccessInstansi(role, input.instansi);
 
     const [quota, sessionById, sessionByJam] = await Promise.all([
       tx.kuota.findUnique({
@@ -394,6 +417,7 @@ export async function updatePeserta(id: string, input: z.infer<typeof updatePese
       data: {
         namaLengkap: input.nama_lengkap,
         departemen: input.departemen,
+        instansi: input.instansi,
         statusKepesertaan: input.status_kepesertaan,
         tanggalTerapi,
         tanggalLahir,
@@ -446,6 +470,7 @@ export async function updatePeserta(id: string, input: z.infer<typeof updatePese
       sesi_id: updated.jamSesi,
       jam_kehadiran: session.jam,
       departemen: updated.departemen,
+      instansi: updated.instansi as Instansi,
       status_kepesertaan: updated.statusKepesertaan,
       tanggal_lahir: updated.tanggalLahir ? formatDateOnly(updated.tanggalLahir) : null,
       jenis_kelamin: updated.jenisKelamin,
@@ -459,12 +484,13 @@ export async function updatePeserta(id: string, input: z.infer<typeof updatePese
   });
 }
 
-export async function deletePeserta(id: string) {
+export async function deletePeserta(id: string, role?: AdminRole) {
   return prisma.$transaction(async (tx) => {
     const existing = await tx.terapi.findUnique({ where: { id } });
     if (!existing) {
       return null;
     }
+    assertRoleCanAccessInstansi(role, existing.instansi);
 
     await tx.terapi.delete({ where: { id } });
 
@@ -505,7 +531,7 @@ export async function listPengguna(
       orderBy: { email: "asc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
-      select: { id: true, email: true },
+      select: { id: true, email: true, role: true },
     }),
   ]);
 
@@ -517,31 +543,37 @@ export async function listPengguna(
     items: rows.map((item) => ({
       id: item.id,
       email: item.email,
+      role: item.role,
     })),
   };
 }
 
-export async function createPengguna(input: { email: string; password: string }) {
+export async function createPengguna(input: { email: string; role: AdminRole; password: string }) {
   const passwordHash = await bcrypt.hash(input.password, 10);
   const user = await prisma.adminUser.create({
     data: {
       email: input.email.toLowerCase(),
+      role: input.role,
       passwordHash,
     },
-    select: { id: true, email: true },
+    select: { id: true, email: true, role: true },
   });
 
   return user;
 }
 
-export async function updatePengguna(id: string, input: { email?: string; password?: string }) {
+export async function updatePengguna(id: string, input: { email?: string; role?: AdminRole; password?: string }) {
   const data: {
     email?: string;
+    role?: AdminRole;
     passwordHash?: string;
   } = {};
 
   if (input.email) {
     data.email = input.email.toLowerCase();
+  }
+  if (input.role) {
+    data.role = input.role;
   }
   if (input.password) {
     data.passwordHash = await bcrypt.hash(input.password, 10);
@@ -550,7 +582,7 @@ export async function updatePengguna(id: string, input: { email?: string; passwo
   const updated = await prisma.adminUser.update({
     where: { id },
     data,
-    select: { id: true, email: true },
+    select: { id: true, email: true, role: true },
   });
 
   return updated;

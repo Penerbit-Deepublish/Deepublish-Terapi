@@ -16,6 +16,7 @@ CREATE TABLE "terapi"."terapi" (
     "paket" TEXT NOT NULL,
     "jam_sesi" TEXT NOT NULL,
     "departemen" TEXT,
+    "instansi" TEXT NOT NULL DEFAULT 'Deepublish',
     "status_kepesertaan" TEXT,
     "tanggal_lahir" DATE,
     "keluhan_luar" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
@@ -30,7 +31,9 @@ CREATE TABLE "terapi"."terapi" (
 -- CreateTable
 CREATE TABLE "terapi"."admin_users" (
     "id" UUID NOT NULL,
+    "username" TEXT NOT NULL DEFAULT 'Admin',
     "email" TEXT NOT NULL,
+    "role" TEXT NOT NULL DEFAULT 'super',
     "password_hash" TEXT NOT NULL,
 
     CONSTRAINT "admin_users_pkey" PRIMARY KEY ("id")

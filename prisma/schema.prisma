@@ -22,6 +22,7 @@ model Terapi {
   paket               String        @db.Text
   jamSesi             String        @map("jam_sesi") @db.Text
   departemen          String?       @db.Text
+  instansi            String        @default("Deepublish") @db.Text
   statusKepesertaan   String?       @map("status_kepesertaan") @db.Text
   tanggalLahir        DateTime?     @map("tanggal_lahir") @db.Date
   keluhanLuar         String[]      @map("keluhan_luar") @db.Text
@@ -41,7 +42,9 @@ model Terapi {
 
 model AdminUser {
   id           String @id @default(uuid()) @db.Uuid
+  name         String @default("Admin") @map("username") @db.Text
   email        String @unique @db.Text
+  role         String @default("super") @db.Text
   passwordHash String @map("password_hash") @db.Text
 
   @@map("admin_users")

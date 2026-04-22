@@ -1,10 +1,11 @@
 import jwt from "jsonwebtoken";
+import { isAdminRole, type AdminRole } from "@/lib/admin-roles";
 import { AUTH_COOKIE, getEnv, getJwtTtl } from "@/lib/env";
 
 export interface AdminJwtPayload {
   sub: string;
   email: string;
-  role: "admin";
+  role: AdminRole;
   name?: string;
   avatar?: string;
 }
@@ -28,7 +29,7 @@ export function verifyAdminToken(token: string): AdminJwtPayload | null {
     }
 
     const payload = decoded as Partial<AdminJwtPayload>;
-    if (!payload.sub || !payload.email || payload.role !== "admin") {
+    if (!payload.sub || !payload.email || !isAdminRole(payload.role)) {
       return null;
     }
 

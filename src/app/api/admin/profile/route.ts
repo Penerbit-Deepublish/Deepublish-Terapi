@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { AUTH_COOKIE, signAdminToken } from "@/lib/auth";
 import { DEFAULT_ADMIN_AVATAR } from "@/lib/constants";
 import { adminProfileUpdateSchema } from "@/lib/validators/admin";
+import { isAdminRole, type AdminRole } from "@/lib/admin-roles";
 
 function getDefaultName(email: string) {
   return email.split("@")[0] || "Admin";
@@ -14,13 +15,14 @@ function getDefaultName(email: string) {
 function issueCookie(
   sub: string,
   email: string,
+  role: AdminRole,
   name: string,
   avatar: string,
 ) {
   const token = signAdminToken({
     sub,
     email,
-    role: "admin",
+    role,
     name,
     avatar,
   });
@@ -28,6 +30,7 @@ function issueCookie(
   const response = ok({
     sub,
     email,
+    role,
     name,
     avatar,
   });
@@ -45,6 +48,10 @@ function issueCookie(
   return response;
 }
 
+function getEnvAdminRole(): AdminRole {
+  return isAdminRole(process.env.ADMIN_ROLE) ? process.env.ADMIN_ROLE : "super";
+}
+
 function isMissingTableError(error: unknown) {
   const prismaError = error as Prisma.PrismaClientKnownRequestError;
   if (prismaError?.code === "P2021") return true;
@@ -60,10 +67,12 @@ export async function GET(req: NextRequest) {
 
   const fallbackName = admin.name || getDefaultName(admin.email);
   const fallbackAvatar = admin.avatar || DEFAULT_ADMIN_AVATAR;
+  const fallbackRole = isAdminRole(admin.role) ? admin.role : "super";
 
   if (admin.sub === "env-admin") {
     return ok({
       email: admin.email,
+      role: fallbackRole,
       name: fallbackName,
       avatar: fallbackAvatar,
     });
@@ -72,18 +81,21 @@ export async function GET(req: NextRequest) {
   try {
     const user = await prisma.adminUser.findUnique({
       where: { id: admin.sub },
-      select: { email: true },
+      select: { email: true, name: true, role: true },
     });
+    const role = isAdminRole(user?.role) ? user.role : fallbackRole;
 
     return ok({
       email: user?.email ?? admin.email,
-      name: fallbackName,
+      role,
+      name: user?.name ?? fallbackName,
       avatar: fallbackAvatar,
     });
   } catch (error) {
     if (isMissingTableError(error)) {
       return ok({
         email: admin.email,
+        role: fallbackRole,
         name: fallbackName,
         avatar: fallbackAvatar,
       });
@@ -111,26 +123,28 @@ export async function PATCH(req: NextRequest) {
   const nextEmail = parsed.data.email.trim().toLowerCase();
   const nextName = parsed.data.name.trim() || getDefaultName(nextEmail);
   const nextAvatar = parsed.data.avatar.trim() || DEFAULT_ADMIN_AVATAR;
+  const currentRole = isAdminRole(admin.role) ? admin.role : getEnvAdminRole();
 
   if (admin.sub === "env-admin") {
-    return issueCookie(admin.sub, nextEmail, nextName, nextAvatar);
+    return issueCookie(admin.sub, nextEmail, currentRole, nextName, nextAvatar);
   }
 
   try {
     const updated = await prisma.adminUser.update({
       where: { id: admin.sub },
-      data: { email: nextEmail },
-      select: { id: true, email: true },
+      data: { email: nextEmail, name: nextName },
+      select: { id: true, email: true, name: true, role: true },
     });
 
-    return issueCookie(updated.id, updated.email, nextName, nextAvatar);
+    const role = isAdminRole(updated.role) ? updated.role : currentRole;
+    return issueCookie(updated.id, updated.email, role, nextName || updated.name, nextAvatar);
   } catch (error) {
     const prismaError = error as Prisma.PrismaClientKnownRequestError;
     if (prismaError?.code === "P2002") {
       return fail("Email sudah digunakan", 409);
     }
     if (isMissingTableError(error)) {
-      return issueCookie(admin.sub, nextEmail, nextName, nextAvatar);
+      return issueCookie(admin.sub, nextEmail, currentRole, nextName, nextAvatar);
     }
     return fail("Gagal menyimpan profil", 500);
   }

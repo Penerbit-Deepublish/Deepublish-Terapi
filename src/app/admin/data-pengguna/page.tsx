@@ -9,10 +9,19 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Plus, Pencil, Trash2, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { DateRangeFilter } from "@/components/admin/date-range-filter";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ADMIN_ROLE_OPTIONS, type AdminRole } from "@/lib/admin-roles";
 
 interface PenggunaItem {
   id: string;
   email: string;
+  role: AdminRole;
 }
 
 interface PenggunaResponse {
@@ -37,6 +46,7 @@ export default function DataPenggunaPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editing, setEditing] = useState<PenggunaItem | null>(null);
   const [email, setEmail] = useState("");
+  const [role, setRole] = useState<AdminRole>("deepublishadmin");
   const [password, setPassword] = useState("");
   const [activeEmail, setActiveEmail] = useState("");
   const [dateFrom, setDateFrom] = useState("");
@@ -85,6 +95,7 @@ export default function DataPenggunaPage() {
   const resetForm = () => {
     setEditing(null);
     setEmail("");
+    setRole("deepublishadmin");
     setPassword("");
     setIsFormOpen(false);
   };
@@ -94,6 +105,7 @@ export default function DataPenggunaPage() {
     setError("");
     setEditing(null);
     setEmail("");
+    setRole("deepublishadmin");
     setPassword("");
     setIsFormOpen(true);
   };
@@ -103,6 +115,7 @@ export default function DataPenggunaPage() {
     setError("");
     setEditing(item);
     setEmail(item.email);
+    setRole(item.role);
     setPassword("");
     setIsFormOpen(true);
   };
@@ -131,8 +144,8 @@ export default function DataPenggunaPage() {
       const url = editing ? `/api/admin/pengguna/${editing.id}` : "/api/admin/pengguna";
       const method = editing ? "PATCH" : "POST";
       const body = editing
-        ? JSON.stringify({ email, ...(password ? { password } : {}) })
-        : JSON.stringify({ email, password });
+        ? JSON.stringify({ email, role, ...(password ? { password } : {}) })
+        : JSON.stringify({ email, role, password });
 
       const res = await fetch(url, {
         method,
@@ -218,6 +231,21 @@ export default function DataPenggunaPage() {
                 />
               </div>
               <div className="space-y-2">
+                <Label>Role</Label>
+                <Select value={role} onValueChange={(value) => setRole(value as AdminRole)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ADMIN_ROLE_OPTIONS.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="pengguna-password">
                   {editing ? "Password Baru (opsional)" : "Password"}
                 </Label>
@@ -287,6 +315,7 @@ export default function DataPenggunaPage() {
                 <TableRow>
                   <TableHead>ID</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Aksi</TableHead>
                 </TableRow>
@@ -298,6 +327,9 @@ export default function DataPenggunaPage() {
                     <TableRow key={item.id}>
                       <TableCell className="font-medium text-muted-foreground">{item.id.slice(0, 8)}</TableCell>
                       <TableCell className="font-medium">{item.email}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{item.role}</Badge>
+                      </TableCell>
                       <TableCell>
                         {isCurrent ? <Badge>Anda</Badge> : <Badge variant="secondary">Aktif</Badge>}
                       </TableCell>
@@ -321,7 +353,7 @@ export default function DataPenggunaPage() {
                   );
                 }) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
                       Tidak ada data pengguna
                     </TableCell>
                   </TableRow>

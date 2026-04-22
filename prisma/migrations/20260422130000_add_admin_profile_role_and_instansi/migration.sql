@@ -1,0 +1,6 @@
+ALTER TABLE "terapi"."admin_users"
+ADD COLUMN IF NOT EXISTS "username" TEXT NOT NULL DEFAULT 'Admin',
+ADD COLUMN IF NOT EXISTS "role" TEXT NOT NULL DEFAULT 'super';
+
+ALTER TABLE "terapi"."terapi"
+ADD COLUMN IF NOT EXISTS "instansi" TEXT NOT NULL DEFAULT 'Deepublish';

@@ -40,7 +40,7 @@ describe("admin routes", () => {
   });
 
   it("returns peserta list with pagination", async () => {
-    authMock.mockReturnValueOnce({ sub: "1", email: "a", role: "admin" });
+    authMock.mockReturnValueOnce({ sub: "1", email: "a", role: "super" });
     listPesertaMock.mockResolvedValueOnce({ page: 1, pageSize: 10, total: 1, totalPages: 1, items: [] });
 
     const req = new NextRequest("http://localhost/api/admin/peserta?page=1&pageSize=10");
@@ -49,7 +49,7 @@ describe("admin routes", () => {
   });
 
   it("returns empty dashboard when table is missing", async () => {
-    authMock.mockReturnValueOnce({ sub: "1", email: "a", role: "admin" });
+    authMock.mockReturnValueOnce({ sub: "1", email: "a", role: "super" });
     dashboardMock.mockRejectedValueOnce(new Error('relation "terapi.terapi" does not exist'));
 
     const req = new NextRequest("http://localhost/api/admin/dashboard");
@@ -61,7 +61,7 @@ describe("admin routes", () => {
   });
 
   it("validates kuota payload", async () => {
-    authMock.mockReturnValueOnce({ sub: "1", email: "a", role: "admin" });
+    authMock.mockReturnValueOnce({ sub: "1", email: "a", role: "super" });
 
     const req = new NextRequest("http://localhost/api/admin/kuota", {
       method: "POST",
@@ -75,7 +75,7 @@ describe("admin routes", () => {
   });
 
   it("deletes peserta by id", async () => {
-    authMock.mockReturnValueOnce({ sub: "1", email: "a", role: "admin" });
+    authMock.mockReturnValueOnce({ sub: "1", email: "a", role: "super" });
     deletePesertaMock.mockResolvedValueOnce({ id: "abc" });
 
     const req = new NextRequest("http://localhost/api/admin/peserta/abc", { method: "DELETE" });

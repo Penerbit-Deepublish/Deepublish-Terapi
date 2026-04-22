@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { STATUS_KEPESERTAAN_OPTIONS } from "@/lib/kepesertaan";
+import { ADMIN_ROLE_OPTIONS } from "@/lib/admin-roles";
+import {
+  INSTANSI_OPTIONS,
+  STATUS_KEPESERTAAN_OPTIONS,
+  isStatusValidForInstansi,
+} from "@/lib/kepesertaan";
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -51,6 +56,7 @@ export const pesertaQuerySchema = z.object({
 export const updatePesertaSchema = z.object({
   nama_lengkap: z.string().trim().min(3),
   departemen: z.string().trim().min(1),
+  instansi: z.enum(INSTANSI_OPTIONS),
   status_kepesertaan: z.enum(STATUS_KEPESERTAAN_OPTIONS),
   tanggal_terapi: z.string().regex(dateRegex),
   tanggal_lahir: z.string().regex(dateRegex),
@@ -62,6 +68,14 @@ export const updatePesertaSchema = z.object({
   keluhan_dalam_lainnya: z.string().trim().max(200).optional(),
   sesi_id: z.string().trim().min(1),
 }).superRefine((val, ctx) => {
+  if (!isStatusValidForInstansi(val.instansi, val.status_kepesertaan)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Status kepesertaan tidak sesuai dengan instansi.",
+      path: ["status_kepesertaan"],
+    });
+  }
+
   const hasKeluhan =
     (val.keluhan_luar?.length ?? 0) > 0 ||
     (val.keluhan_dalam?.length ?? 0) > 0 ||
@@ -126,19 +140,21 @@ export const penggunaQuerySchema = z.object({
 
 export const createPenggunaSchema = z.object({
   email: z.string().trim().email(),
+  role: z.enum(ADMIN_ROLE_OPTIONS),
   password: z.string().min(8).max(72),
 });
 
 export const updatePenggunaSchema = z
   .object({
     email: z.string().trim().email().optional(),
+    role: z.enum(ADMIN_ROLE_OPTIONS).optional(),
     password: z.string().min(8).max(72).optional(),
   })
   .superRefine((value, ctx) => {
-    if (!value.email && !value.password) {
+    if (!value.email && !value.role && !value.password) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Isi minimal email atau password",
+        message: "Isi minimal email, role, atau password",
       });
     }
   });

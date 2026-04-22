@@ -23,11 +23,12 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/admin/pese
   }
 
   try {
-    const updated = await updatePeserta(id, parsed.data);
+    const updated = await updatePeserta(id, parsed.data, admin.role);
     if (!updated) return fail("Peserta tidak ditemukan", 404);
     return ok(updated);
   } catch (error) {
     if (error instanceof Error) {
+      if (error.message === "FORBIDDEN_INSTANSI") return fail("Tidak punya akses ke data instansi ini", 403);
       if (error.message === "SCHEDULE_NOT_FOUND") return fail("Jadwal tanggal belum dibuka admin", 409);
       if (error.message === "SESI_NOT_FOUND") return fail("Sesi tidak ditemukan", 404);
       if (error.message === "SESI_FULL") return fail("Sesi penuh", 409);
@@ -44,10 +45,17 @@ export async function DELETE(req: NextRequest, ctx: RouteContext<"/api/admin/pes
 
   const { id } = await ctx.params;
 
-  const deleted = await deletePeserta(id);
-  if (!deleted) {
-    return fail("Peserta tidak ditemukan", 404);
-  }
+  try {
+    const deleted = await deletePeserta(id, admin.role);
+    if (!deleted) {
+      return fail("Peserta tidak ditemukan", 404);
+    }
 
-  return ok(deleted);
+    return ok(deleted);
+  } catch (error) {
+    if (error instanceof Error && error.message === "FORBIDDEN_INSTANSI") {
+      return fail("Tidak punya akses ke data instansi ini", 403);
+    }
+    return fail("Gagal menghapus peserta", 500);
+  }
 }

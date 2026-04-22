@@ -20,7 +20,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { STATUS_KEPESERTAAN_OPTIONS } from "@/lib/kepesertaan";
+import {
+  INSTANSI_OPTIONS,
+  getStatusKepesertaanOptions,
+  type Instansi,
+} from "@/lib/kepesertaan";
 
 const OTHER_OPTION = "Yang lain";
 
@@ -110,6 +114,7 @@ export function BookingForm() {
     defaultValues: {
       namaLengkap: "",
       departemen: "",
+      instansi: undefined,
       statusKepesertaan: undefined,
       tanggalLahir: undefined,
       jenisKelamin: undefined,
@@ -131,6 +136,9 @@ export function BookingForm() {
     useWatch({ control: form.control, name: "tanggalSesi" }) ?? "";
   const selectedJenisKelamin =
     useWatch({ control: form.control, name: "jenisKelamin" }) ?? undefined;
+  const selectedInstansi =
+    useWatch({ control: form.control, name: "instansi" }) ?? "";
+  const statusKepesertaanOptions = getStatusKepesertaanOptions(selectedInstansi);
   const tersediaTanggal = availableDates.filter((item) => item.sisa > 0);
   const isAllQuotaFull = availableDates.length > 0 && tersediaTanggal.length === 0;
   const isReservationDisabled = isAllQuotaFull;
@@ -200,6 +208,10 @@ export function BookingForm() {
     void load();
   }, [selectedTanggalSesi, selectedJenisKelamin, form]);
 
+  useEffect(() => {
+    form.resetField("statusKepesertaan");
+  }, [selectedInstansi, form]);
+
   const onSubmit = async (data: BookingFormValues) => {
     setSubmitError("");
 
@@ -215,6 +227,7 @@ export function BookingForm() {
     const payload = {
       nama_lengkap: data.namaLengkap,
       departemen: data.departemen,
+      instansi: data.instansi,
       status_kepesertaan: data.statusKepesertaan,
       tanggal_terapi: data.tanggalSesi,
       tanggal_lahir: format(data.tanggalLahir, "yyyy-MM-dd"),
@@ -343,14 +356,50 @@ export function BookingForm() {
         </div>
 
         <div className="space-y-3">
+          <Label>Instansi</Label>
+          <Controller
+            control={form.control}
+            name="instansi"
+            render={({ field }) => (
+              <Select
+                value={field.value ?? ""}
+                onValueChange={(value) => field.onChange(value as Instansi)}
+              >
+                <SelectTrigger
+                  size="default"
+                  className={cn("h-12 w-full rounded-xl px-4", focusStrokeClass)}
+                >
+                  <SelectValue placeholder="Pilih Instansi" />
+                </SelectTrigger>
+                <SelectContent>
+                  {INSTANSI_OPTIONS.map((instansi) => (
+                    <SelectItem key={instansi} value={instansi}>
+                      {instansi}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {form.formState.errors.instansi && (
+            <p className="text-red-500 text-sm">{form.formState.errors.instansi.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-3">
           <Label>Status Kepesertaan</Label>
           <Controller
             control={form.control}
             name="statusKepesertaan"
             render={({ field }) => (
               <div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {STATUS_KEPESERTAAN_OPTIONS.map((opt) => {
+                {!selectedInstansi ? (
+                  <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                    Pilih instansi terlebih dahulu.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {statusKepesertaanOptions.map((opt) => {
                     const isSelected = field.value === opt;
                     return (
                       <button
@@ -369,7 +418,8 @@ export function BookingForm() {
                       </button>
                     );
                   })}
-                </div>
+                  </div>
+                )}
                 {form.formState.errors.statusKepesertaan && (
                   <p className="text-red-500 text-sm mt-1">
                     {form.formState.errors.statusKepesertaan.message}

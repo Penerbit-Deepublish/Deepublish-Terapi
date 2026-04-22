@@ -6,15 +6,36 @@ const prisma = new PrismaClient();
 async function main() {
   await prisma.$executeRawUnsafe('CREATE SCHEMA IF NOT EXISTS "terapi"');
 
-  const adminEmail = process.env.ADMIN_EMAIL || "admin@terapi.local";
-  const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+  const adminUsers = [
+    {
+      name: "Admin IMBS",
+      email: "admin@imbs.com",
+      role: "imbsadmin",
+      password: "AdminIMBS@123",
+    },
+  ];
 
-  const passwordHash = await bcrypt.hash(adminPassword, 10);
-  await prisma.adminUser.upsert({
-    where: { email: adminEmail },
-    update: { passwordHash },
-    create: { email: adminEmail, passwordHash },
-  });
+  if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
+    const envAdminEmail = process.env.ADMIN_EMAIL.toLowerCase();
+    const hasEnvAdmin = adminUsers.some((admin) => admin.email === envAdminEmail);
+    if (!hasEnvAdmin) {
+      adminUsers.push({
+        name: process.env.ADMIN_NAME || "Admin",
+        email: envAdminEmail,
+        role: process.env.ADMIN_ROLE || "super",
+        password: process.env.ADMIN_PASSWORD,
+      });
+    }
+  }
+
+  for (const admin of adminUsers) {
+    const passwordHash = await bcrypt.hash(admin.password, 10);
+    await prisma.adminUser.upsert({
+      where: { email: admin.email },
+      update: { name: admin.name, role: admin.role, passwordHash },
+      create: { name: admin.name, email: admin.email, role: admin.role, passwordHash },
+    });
+  }
 
   const defaultSessions = [
     { jam: "09:00 - 10:00", kapasitas: 4 },
