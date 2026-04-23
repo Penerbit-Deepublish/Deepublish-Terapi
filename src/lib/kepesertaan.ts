@@ -4,7 +4,11 @@ export type Instansi = (typeof INSTANSI_OPTIONS)[number];
 
 export const DEEPUBLISH_STATUS_KEPESERTAAN_OPTIONS = [
   "Karyawan",
-  "Keluarga",
+  "Keluarga Karyawan",
+  "Mitra Kerja",
+  "Keluarga Mitra Kerja",
+  "Konsumen",
+  "Keluarga Konsumen",
 ] as const;
 
 export const IMBS_STATUS_KEPESERTAAN_OPTIONS = [

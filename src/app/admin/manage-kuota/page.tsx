@@ -12,7 +12,7 @@ import { DateRangeFilter } from "@/components/admin/date-range-filter";
 interface KuotaItem {
   id: string;
   tanggal: string;
-  kuota_max: number;
+  kuota_max: number; 
   kuota_terpakai: number;
 }
 

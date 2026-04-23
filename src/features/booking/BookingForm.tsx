@@ -398,27 +398,26 @@ export function BookingForm() {
                     Pilih instansi terlebih dahulu.
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {statusKepesertaanOptions.map((opt) => {
-                    const isSelected = field.value === opt;
-                    return (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => field.onChange(opt)}
-                        className={cn(
-                          "min-h-14 rounded-2xl border-2 px-4 py-3 text-center font-semibold transition-all duration-300",
-                          focusStrokeClass,
-                          isSelected
-                            ? "border-[#185cab] bg-[#185cab] text-white"
-                            : "border-border bg-muted text-foreground hover:bg-muted/80",
-                        )}
-                      >
-                        {opt}
-                      </button>
-                    );
-                  })}
-                  </div>
+                  <Select
+                    value={field.value ?? ""}
+                    onValueChange={(value) => field.onChange(value)}
+                  >
+                    <SelectTrigger
+                      size="default"
+                      className={cn("h-12 w-full rounded-xl px-4", focusStrokeClass)}
+                    >
+                      <SelectValue placeholder="Pilih Status Kepesertaan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {statusKepesertaanOptions.map((opt) => (
+                          <SelectItem key={opt} value={opt}>
+                            {opt}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 )}
                 {form.formState.errors.statusKepesertaan && (
                   <p className="text-red-500 text-sm mt-1">
