@@ -305,7 +305,7 @@ export async function listPeserta(
     sqlConditions.push(Prisma.sql`t.tanggal_terapi <= ${parseDateOnly(dateTo)}`);
   }
   const whereSql = sqlConditions.length > 0
-    ? Prisma.sql`WHERE ${Prisma.join(sqlConditions, Prisma.sql` AND `)}`
+    ? Prisma.sql`WHERE ${Prisma.join(sqlConditions, " AND ")}`
     : Prisma.empty;
 
   const [total, rows, sessions] = await Promise.all([
