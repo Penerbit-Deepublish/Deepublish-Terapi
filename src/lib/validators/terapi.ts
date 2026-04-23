@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   INSTANSI_OPTIONS,
   STATUS_KEPESERTAAN_OPTIONS,
+  isDepartemenRequiredForInstansi,
   isStatusValidForInstansi,
 } from "@/lib/kepesertaan";
 
@@ -9,7 +10,7 @@ const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
 export const bookingApiSchema = z.object({
   nama_lengkap: z.string().trim().min(3),
-  departemen: z.string().trim().min(1),
+  departemen: z.string().trim().default(""),
   instansi: z.enum(INSTANSI_OPTIONS),
   status_kepesertaan: z.enum(STATUS_KEPESERTAAN_OPTIONS),
   tanggal_terapi: z.string().regex(dateRegex),
@@ -23,6 +24,14 @@ export const bookingApiSchema = z.object({
   keluhan_dalam_lainnya: z.string().trim().max(200).optional(),
   sesi_id: z.uuid(),
 }).superRefine((val, ctx) => {
+  if (isDepartemenRequiredForInstansi(val.instansi) && val.departemen.trim().length < 2) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Departemen minimal 2 karakter.",
+      path: ["departemen"],
+    });
+  }
+
   if (!isStatusValidForInstansi(val.instansi, val.status_kepesertaan)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,

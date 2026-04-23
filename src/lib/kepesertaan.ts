@@ -50,3 +50,7 @@ export function getStatusKepesertaanOptions(instansi?: Instansi | "") {
 export function isStatusValidForInstansi(instansi: Instansi, status: string) {
   return getStatusKepesertaanOptions(instansi).some((option) => option === status);
 }
+
+export function isDepartemenRequiredForInstansi(instansi?: Instansi | "") {
+  return instansi === "Deepublish";
+}

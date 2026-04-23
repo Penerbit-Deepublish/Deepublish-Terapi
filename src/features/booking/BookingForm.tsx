@@ -23,6 +23,7 @@ import {
 import {
   INSTANSI_OPTIONS,
   getStatusKepesertaanOptions,
+  isDepartemenRequiredForInstansi,
   type Instansi,
 } from "@/lib/kepesertaan";
 
@@ -212,6 +213,13 @@ export function BookingForm() {
     form.resetField("statusKepesertaan");
   }, [selectedInstansi, form]);
 
+  useEffect(() => {
+    if (!isDepartemenRequiredForInstansi(selectedInstansi)) {
+      form.setValue("departemen", "", { shouldValidate: true });
+      form.clearErrors("departemen");
+    }
+  }, [selectedInstansi, form]);
+
   const onSubmit = async (data: BookingFormValues) => {
     setSubmitError("");
 
@@ -344,18 +352,6 @@ export function BookingForm() {
         </div>
 
         <div className="space-y-3">
-          <Label>Departemen</Label>
-          <Input
-            {...form.register("departemen")}
-            placeholder="Masukkan departemen"
-            className={cn("py-6", focusStrokeClass)}
-          />
-          {form.formState.errors.departemen && (
-            <p className="text-red-500 text-sm">{form.formState.errors.departemen.message}</p>
-          )}
-        </div>
-
-        <div className="space-y-3">
           <Label>Instansi</Label>
           <Controller
             control={form.control}
@@ -385,6 +381,20 @@ export function BookingForm() {
             <p className="text-red-500 text-sm">{form.formState.errors.instansi.message}</p>
           )}
         </div>
+
+        {isDepartemenRequiredForInstansi(selectedInstansi) && (
+          <div className="space-y-3">
+            <Label>Departemen</Label>
+            <Input
+              {...form.register("departemen")}
+              placeholder="Masukkan departemen"
+              className={cn("py-6", focusStrokeClass)}
+            />
+            {form.formState.errors.departemen && (
+              <p className="text-red-500 text-sm">{form.formState.errors.departemen.message}</p>
+            )}
+          </div>
+        )}
 
         <div className="space-y-3">
           <Label>Status Kepesertaan</Label>

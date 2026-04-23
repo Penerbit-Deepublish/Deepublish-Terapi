@@ -277,7 +277,7 @@ export async function createBooking(input: BookingApiInput) {
         tanggalTerapi: tanggal,
         paket: input.paket,
         jamSesi: input.sesi_id,
-        departemen: input.departemen,
+        departemen: input.departemen.trim() || null,
         instansi: input.instansi,
         statusKepesertaan: input.status_kepesertaan,
         tanggalLahir,

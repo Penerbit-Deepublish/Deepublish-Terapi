@@ -2,12 +2,13 @@ import * as z from "zod";
 import {
   INSTANSI_OPTIONS,
   STATUS_KEPESERTAAN_OPTIONS,
+  isDepartemenRequiredForInstansi,
   isStatusValidForInstansi,
 } from "@/lib/kepesertaan";
 
 export const bookingFormSchema = z.object({
   namaLengkap: z.string().trim().min(3, "Nama lengkap minimal 3 karakter"),
-  departemen: z.string().trim().min(2, "Departemen minimal 2 karakter"),
+  departemen: z.string().trim().default(""),
   instansi: z.enum(INSTANSI_OPTIONS, { message: "Pilih instansi" }),
   statusKepesertaan: z.enum(STATUS_KEPESERTAAN_OPTIONS, { message: "Pilih status kepesertaan" }),
   tanggalLahir: z.date({ message: "Tanggal lahir wajib dipilih" }),
@@ -29,6 +30,14 @@ export const bookingFormSchema = z.object({
     .string({ message: "Pilih jam kehadiran yang tersedia" })
     .min(1, "Pilih jam kehadiran yang tersedia"),
 }).superRefine((val, ctx) => {
+  if (isDepartemenRequiredForInstansi(val.instansi) && val.departemen.trim().length < 2) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["departemen"],
+      message: "Departemen minimal 2 karakter",
+    });
+  }
+
   if (!isStatusValidForInstansi(val.instansi, val.statusKepesertaan)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
