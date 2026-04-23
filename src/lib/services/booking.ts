@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { BookingApiInput } from "@/lib/validators/terapi";
 import { addDays, formatDateOnly, parseDateOnly, startOfTodayUtc } from "@/lib/services/date";
+import type { Instansi } from "@/lib/kepesertaan";
+import { getMaxBookingPerGenderPerSession, getMaxBookingPerSession } from "@/lib/quota";
 
 export interface SessionAvailability {
   id: string;
@@ -38,14 +40,7 @@ const DEFAULT_SESSION_TIMES = [
   "15:00 - 16:00",
 ] as const;
 
-const MAX_BOOKING_PER_SESSION = 4;
-const MAX_BOOKING_PER_GENDER_PER_SESSION = 2;
-const DEFAULT_SESSION_CAPACITY = MAX_BOOKING_PER_SESSION;
-
-function getEffectiveSessionCapacity(kapasitas: number) {
-  void kapasitas;
-  return MAX_BOOKING_PER_SESSION;
-}
+const DEFAULT_SESSION_CAPACITY = getMaxBookingPerSession("Deepublish");
 
 function normalizeJam(value: string) {
   return value.replaceAll(".", ":").replace(/\s*-\s*/g, " - ").trim();
@@ -66,7 +61,7 @@ async function ensureDefaultSessions() {
 
 async function getQuotaSnapshotsForRange(from: Date, to: Date): Promise<QuotaSnapshot[]> {
   const [sessions, quotas, bookingsByDate] = await Promise.all([
-    prisma.sesi.findMany({ select: { kapasitas: true } }),
+    prisma.sesi.findMany({ select: { id: true } }),
     prisma.kuota.findMany({
       where: { tanggal: { gte: from, lte: to } },
       select: { id: true, tanggal: true, kuotaMax: true },
@@ -78,7 +73,7 @@ async function getQuotaSnapshotsForRange(from: Date, to: Date): Promise<QuotaSna
     }),
   ]);
 
-  const defaultMax = sessions.reduce((sum, item) => sum + getEffectiveSessionCapacity(item.kapasitas), 0);
+  const defaultMax = sessions.length * getMaxBookingPerSession("ALL");
   const quotaMap = new Map(
     quotas.map((item) => [formatDateOnly(item.tanggal), item] as const),
   );
@@ -129,14 +124,16 @@ export async function getQuotaByRange(dateFrom: string, dateTo: string) {
 export async function getSesiAvailability(
   dateString: string,
   jenisKelamin?: "L" | "P",
+  instansi?: Instansi,
 ): Promise<SessionAvailability[]> {
   const tanggal = parseDateOnly(dateString);
   await ensureDefaultSessions();
 
+  const scope = instansi ?? "Deepublish";
   const [sessions, bookings] = await Promise.all([
     prisma.sesi.findMany({ orderBy: { jam: "asc" } }),
     prisma.terapi.findMany({
-      where: { tanggalTerapi: tanggal },
+      where: { tanggalTerapi: tanggal, instansi: scope },
       select: { jamSesi: true, jenisKelamin: true },
     }),
   ]);
@@ -152,9 +149,10 @@ export async function getSesiAvailability(
   return sessions.map((s) => {
     const bookingRow = bookedMap[s.id] || { total: 0, laki: 0, wanita: 0 };
     const terisiTanggal = bookingRow.total;
-    const kapasitas = getEffectiveSessionCapacity(s.kapasitas);
-    const sisaLaki = Math.max(0, MAX_BOOKING_PER_GENDER_PER_SESSION - bookingRow.laki);
-    const sisaWanita = Math.max(0, MAX_BOOKING_PER_GENDER_PER_SESSION - bookingRow.wanita);
+    const kapasitas = getMaxBookingPerSession(scope);
+    const perGenderMax = getMaxBookingPerGenderPerSession(scope);
+    const sisaLaki = Math.max(0, perGenderMax - bookingRow.laki);
+    const sisaWanita = Math.max(0, perGenderMax - bookingRow.wanita);
     const sisaTotal = Math.max(0, kapasitas - terisiTanggal);
     const tersediaUntukGender =
       jenisKelamin === "L"
@@ -234,6 +232,7 @@ export async function createBooking(input: BookingApiInput) {
         where: {
           tanggalTerapi: tanggal,
           jamSesi: input.sesi_id,
+          instansi: input.instansi,
         },
       }),
       tx.terapi.count({
@@ -246,6 +245,7 @@ export async function createBooking(input: BookingApiInput) {
           tanggalTerapi: tanggal,
           jamSesi: input.sesi_id,
           jenisKelamin: input.jenis_kelamin,
+          instansi: input.instansi,
         },
       }),
     ]);
@@ -254,11 +254,11 @@ export async function createBooking(input: BookingApiInput) {
       throw new Error("SESI_NOT_FOUND");
     }
 
-    const sessionCapacity = getEffectiveSessionCapacity(session.kapasitas);
+    const sessionCapacity = getMaxBookingPerSession(input.instansi);
     if (sessionBookings >= sessionCapacity) {
       throw new Error("SESI_FULL");
     }
-    if (sameGenderSessionBookings >= MAX_BOOKING_PER_GENDER_PER_SESSION) {
+    if (sameGenderSessionBookings >= getMaxBookingPerGenderPerSession(input.instansi)) {
       throw new Error("GENDER_QUOTA_FULL");
     }
 

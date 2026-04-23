@@ -3,6 +3,7 @@ import { ADMIN_ROLE_OPTIONS } from "@/lib/admin-roles";
 import {
   INSTANSI_OPTIONS,
   STATUS_KEPESERTAAN_OPTIONS,
+  isDepartemenRequiredForInstansi,
   isStatusValidForInstansi,
 } from "@/lib/kepesertaan";
 
@@ -55,7 +56,7 @@ export const pesertaQuerySchema = z.object({
 
 export const updatePesertaSchema = z.object({
   nama_lengkap: z.string().trim().min(3),
-  departemen: z.string().trim().min(1),
+  departemen: z.string().trim().default(""),
   instansi: z.enum(INSTANSI_OPTIONS),
   status_kepesertaan: z.enum(STATUS_KEPESERTAAN_OPTIONS),
   tanggal_terapi: z.string().regex(dateRegex),
@@ -68,6 +69,14 @@ export const updatePesertaSchema = z.object({
   keluhan_dalam_lainnya: z.string().trim().max(200).optional(),
   sesi_id: z.string().trim().min(1),
 }).superRefine((val, ctx) => {
+  if (isDepartemenRequiredForInstansi(val.instansi) && val.departemen.trim().length < 2) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Departemen minimal 2 karakter.",
+      path: ["departemen"],
+    });
+  }
+
   if (!isStatusValidForInstansi(val.instansi, val.status_kepesertaan)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,

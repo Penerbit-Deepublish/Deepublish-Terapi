@@ -30,6 +30,9 @@ interface DashboardResponse {
       terpakai: number;
       terpakai_laki: number;
       terpakai_wanita: number;
+      kapasitas_total: number;
+      kapasitas_laki: number;
+      kapasitas_wanita: number;
       sisa: number;
     }>;
   };
@@ -43,8 +46,6 @@ type MetricCard = {
   tone?: "primary" | "plain";
   icon: ComponentType<{ className?: string }>;
 };
-
-const MAX_PER_SESI = 4;
 
 function DashboardSkeleton() {
   return (
@@ -129,7 +130,8 @@ export default function AdminDashboard() {
   const sesiData = data?.charts.penggunaan_kuota_per_sesi ?? [];
   const totalSesiAktif = sesiData.length;
   const totalBookingHariIni = sesiData.reduce((sum, item) => sum + item.terpakai, 0);
-  const kuotaHarian = totalSesiAktif * MAX_PER_SESI;
+  const maxPerSesi = sesiData[0]?.kapasitas_total ?? 0;
+  const kuotaHarian = totalSesiAktif * maxPerSesi;
   const sisaKuotaHariIni = Math.max(0, kuotaHarian - totalBookingHariIni);
   const okupansiSesiPersen = kuotaHarian > 0
     ? Math.round((totalBookingHariIni / kuotaHarian) * 100)
@@ -148,14 +150,14 @@ export default function AdminDashboard() {
   const sessionStats = [...sesiData]
     .sort((a, b) => a.jam.localeCompare(b.jam))
     .map((item, idx) => {
-      const terpakaiPerSesi = Math.min(item.terpakai, MAX_PER_SESI);
-      const percent = Math.round((terpakaiPerSesi / MAX_PER_SESI) * 100);
+      const terpakaiPerSesi = Math.min(item.terpakai, item.kapasitas_total);
+      const percent = item.kapasitas_total > 0 ? Math.round((terpakaiPerSesi / item.kapasitas_total) * 100) : 0;
       return {
         ...item,
         label: item.jam,
         terpakaiPerSesi,
-        amount: `${terpakaiPerSesi}/${MAX_PER_SESI}`,
-        genderAmount: `L ${Math.min(item.terpakai_laki, 2)}/2 • P ${Math.min(item.terpakai_wanita, 2)}/2`,
+        amount: `${terpakaiPerSesi}/${item.kapasitas_total}`,
+        genderAmount: `L ${Math.min(item.terpakai_laki, item.kapasitas_laki)}/${item.kapasitas_laki} • P ${Math.min(item.terpakai_wanita, item.kapasitas_wanita)}/${item.kapasitas_wanita}`,
         percent,
         color: sessionColors[idx % sessionColors.length],
       };
@@ -321,7 +323,7 @@ export default function AdminDashboard() {
               <div className="mb-4 flex items-start justify-between">
                 <div>
                   <h3 className="text-xl font-semibold text-slate-900">Statistik Sesi Hari Ini</h3>
-                  <p className="text-sm text-slate-500">Distribusi booking per sesi (maks {MAX_PER_SESI} orang)</p>
+                  <p className="text-sm text-slate-500">Distribusi booking per sesi (maks {maxPerSesi} orang)</p>
                 </div>
                 <button
                   type="button"
@@ -360,7 +362,7 @@ export default function AdminDashboard() {
                           ))}
                         </Pie>
                         <Tooltip
-                          formatter={(value) => [`${value}/${MAX_PER_SESI}`, "Terpakai"]}
+                          formatter={(value) => [`${value}/${maxPerSesi}`, "Terpakai"]}
                           labelFormatter={(label) => `Sesi ${label}`}
                         />
                         <text x="50%" y="48%" textAnchor="middle" className="fill-slate-900 text-[15px] font-bold">

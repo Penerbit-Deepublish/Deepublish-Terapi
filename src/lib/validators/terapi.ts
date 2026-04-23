@@ -75,6 +75,7 @@ export const quotaQuerySchema = z.object({
 
 export const sesiQuerySchema = quotaQuerySchema.extend({
   jenis_kelamin: z.enum(["L", "P"]).optional(),
+  instansi: z.enum(INSTANSI_OPTIONS).optional(),
 });
 
 export type BookingApiInput = z.infer<typeof bookingApiSchema>;

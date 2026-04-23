@@ -26,6 +26,7 @@ import { Pencil, Search, Trash2 } from "lucide-react";
 import {
   INSTANSI_OPTIONS,
   getStatusKepesertaanOptions,
+  isDepartemenRequiredForInstansi,
   isInstansi,
   isStatusKepesertaan,
   type Instansi,
@@ -200,8 +201,10 @@ export default function RiwayatPeserta() {
     setSuccess("");
 
     if (!editing.nama_lengkap.trim()) return setError("Nama lengkap wajib diisi");
-    if (!editing.departemen.trim()) return setError("Departemen wajib diisi");
     if (!editing.instansi) return setError("Instansi wajib dipilih");
+    if (isDepartemenRequiredForInstansi(editing.instansi) && editing.departemen.trim().length < 2) {
+      return setError("Departemen minimal 2 karakter");
+    }
     if (!editing.status_kepesertaan) return setError("Status kepesertaan wajib dipilih");
     if (!editing.tanggal_terapi) return setError("Tanggal terapi wajib diisi");
     if (!editing.tanggal_lahir) return setError("Tanggal lahir wajib diisi");
@@ -339,7 +342,12 @@ export default function RiwayatPeserta() {
                         setEditing((prev) => {
                           if (!prev) return prev;
                           return isInstansi(value)
-                            ? { ...prev, instansi: value, status_kepesertaan: "" }
+                            ? {
+                                ...prev,
+                                instansi: value,
+                                status_kepesertaan: "",
+                                departemen: isDepartemenRequiredForInstansi(value) ? prev.departemen : "",
+                              }
                             : { ...prev, instansi: "", status_kepesertaan: "" };
                         })
                       }

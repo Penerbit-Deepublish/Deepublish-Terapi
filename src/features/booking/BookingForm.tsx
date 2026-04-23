@@ -182,6 +182,9 @@ export function BookingForm() {
       form.setValue("jamSesi", "");
       try {
         const params = new URLSearchParams({ tanggal: selectedTanggalSesi });
+        if (selectedInstansi) {
+          params.set("instansi", selectedInstansi);
+        }
         if (selectedJenisKelamin) {
           params.set("jenis_kelamin", selectedJenisKelamin);
         }
@@ -207,7 +210,7 @@ export function BookingForm() {
     };
 
     void load();
-  }, [selectedTanggalSesi, selectedJenisKelamin, form]);
+  }, [selectedTanggalSesi, selectedInstansi, selectedJenisKelamin, form]);
 
   useEffect(() => {
     form.resetField("statusKepesertaan");

@@ -1,6 +1,6 @@
 import type { Instansi } from "@/lib/kepesertaan";
 
-export const ADMIN_ROLE_OPTIONS = ["super", "deepublishadmin", "imbsadmin"] as const;
+export const ADMIN_ROLE_OPTIONS = ["super", "admin", "deepublishadmin", "imbsadmin"] as const;
 
 export type AdminRole = (typeof ADMIN_ROLE_OPTIONS)[number];
 
