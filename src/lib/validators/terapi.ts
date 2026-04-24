@@ -71,10 +71,14 @@ export const bookingApiSchema = z.object({
 
 export const quotaQuerySchema = z.object({
   tanggal: z.string().regex(dateRegex),
+  instansi: z.enum(INSTANSI_OPTIONS).optional(),
 });
 
 export const sesiQuerySchema = quotaQuerySchema.extend({
   jenis_kelamin: z.enum(["L", "P"]).optional(),
+});
+
+export const tanggalQuerySchema = z.object({
   instansi: z.enum(INSTANSI_OPTIONS).optional(),
 });
 

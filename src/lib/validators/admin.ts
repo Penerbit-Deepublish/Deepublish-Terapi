@@ -19,6 +19,7 @@ export const setKuotaSchema = z
     tanggal: z.string().regex(dateRegex).optional(),
     tanggal_mulai: z.string().regex(dateRegex).optional(),
     tanggal_selesai: z.string().regex(dateRegex).optional(),
+    instansi: z.enum(INSTANSI_OPTIONS).optional(),
     kuota_max: z.number().int().min(1).max(500),
   })
   .superRefine((value, ctx) => {

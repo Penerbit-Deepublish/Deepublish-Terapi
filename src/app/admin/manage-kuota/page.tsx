@@ -8,6 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Save, Trash2 } from "lucide-react";
 import { DateRangeFilter } from "@/components/admin/date-range-filter";
+import { INSTANSI_OPTIONS, type Instansi } from "@/lib/kepesertaan";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface KuotaItem {
   id: string;
@@ -30,13 +38,15 @@ export default function ManageKuota() {
   const [isLoading, setIsLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [instansi, setInstansi] = useState<Instansi>("Deepublish");
 
-  const loadKuota = useCallback(async (from: string, to: string) => {
+  const loadKuota = useCallback(async (from: string, to: string, quotaInstansi: Instansi) => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
       if (from) params.set("from", from);
       if (to) params.set("to", to);
+      params.set("instansi", quotaInstansi);
       const res = await fetch(`/api/admin/kuota?${params.toString()}`);
       const json = await res.json();
       if (!res.ok || !json.success) {
@@ -54,8 +64,8 @@ export default function ManageKuota() {
   }, []);
 
   useEffect(() => {
-    void loadKuota("", "");
-  }, [loadKuota]);
+    void loadKuota("", "", instansi);
+  }, [loadKuota, instansi]);
 
   const applyMassal = async () => {
     setError("");
@@ -84,6 +94,7 @@ export default function ManageKuota() {
       body: JSON.stringify({
         tanggal_mulai: tanggalMulai,
         tanggal_selesai: tanggalSelesai,
+        instansi,
         kuota_max: kuotaMassalNumber,
       }),
     });
@@ -95,7 +106,7 @@ export default function ManageKuota() {
     }
 
     setMessage("Kuota massal berhasil disimpan");
-    await loadKuota(dateFrom, dateTo);
+    await loadKuota(dateFrom, dateTo, instansi);
   };
 
   const saveRow = async (tanggal: string, kuotaMax: number) => {
@@ -105,7 +116,7 @@ export default function ManageKuota() {
     const res = await fetch("/api/admin/kuota", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tanggal, kuota_max: kuotaMax }),
+      body: JSON.stringify({ tanggal, instansi, kuota_max: kuotaMax }),
     });
     const json = await res.json();
     if (!res.ok || !json.success) {
@@ -114,7 +125,7 @@ export default function ManageKuota() {
     }
 
     setMessage(`Kuota tanggal ${tanggal} diperbarui`);
-    await loadKuota(dateFrom, dateTo);
+    await loadKuota(dateFrom, dateTo, instansi);
   };
 
   const deleteRow = async (tanggal: string) => {
@@ -123,7 +134,11 @@ export default function ManageKuota() {
     const confirmed = window.confirm(`Hapus kuota untuk tanggal ${tanggal}?`);
     if (!confirmed) return;
 
-    const res = await fetch(`/api/admin/kuota?tanggal=${encodeURIComponent(tanggal)}`, {
+    const params = new URLSearchParams({
+      tanggal,
+      instansi,
+    });
+    const res = await fetch(`/api/admin/kuota?${params.toString()}`, {
       method: "DELETE",
     });
     const json = await res.json();
@@ -133,7 +148,7 @@ export default function ManageKuota() {
     }
 
     setMessage(`Kuota tanggal ${tanggal} berhasil dihapus`);
-    await loadKuota(dateFrom, dateTo);
+    await loadKuota(dateFrom, dateTo, instansi);
   };
 
   const totalPages = Math.max(1, Math.ceil(kuotaData.length / PAGE_SIZE));
@@ -163,6 +178,21 @@ export default function ManageKuota() {
             <CardTitle>Pengaturan Massal</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Instansi</Label>
+              <Select value={instansi} onValueChange={(value) => setInstansi(value as Instansi)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {INSTANSI_OPTIONS.map((item) => (
+                    <SelectItem key={item} value={item}>
+                      {item}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label>Tanggal Mulai</Label>
               <Input type="date" value={tanggalMulai} onChange={(e) => setTanggalMulai(e.target.value)} />
@@ -204,13 +234,13 @@ export default function ManageKuota() {
                 return;
               }
               setError("");
-              void loadKuota(dateFrom, dateTo);
+              void loadKuota(dateFrom, dateTo, instansi);
             }}
             onReset={() => {
               setDateFrom("");
               setDateTo("");
               setError("");
-              void loadKuota("", "");
+              void loadKuota("", "", instansi);
             }}
             isLoading={isLoading}
           />

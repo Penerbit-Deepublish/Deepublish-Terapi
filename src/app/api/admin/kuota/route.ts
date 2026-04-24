@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getAdminFromRequest } from "@/app/api/_utils/auth";
 import { fail, ok } from "@/app/api/_utils/http";
-import { deleteKuotaByTanggal, listKuota, setKuotaRange } from "@/lib/services/admin";
+import { deleteKuotaByTanggal, listKuotaByInstansi, setKuotaRange } from "@/lib/services/admin";
+import { isInstansi } from "@/lib/kepesertaan";
 import { deleteKuotaQuerySchema, setKuotaSchema } from "@/lib/validators/admin";
 
 export async function GET(req: NextRequest) {
@@ -11,12 +12,20 @@ export async function GET(req: NextRequest) {
 
   const dateFrom = req.nextUrl.searchParams.get("from") || undefined;
   const dateTo = req.nextUrl.searchParams.get("to") || undefined;
+  const instansiRaw = req.nextUrl.searchParams.get("instansi") || undefined;
+  const instansi = instansiRaw && isInstansi(instansiRaw) ? instansiRaw : undefined;
+  if (instansiRaw && !instansi) {
+    return fail("Invalid query", 422);
+  }
   try {
-    const data = await listKuota(dateFrom, dateTo);
+    const data = await listKuotaByInstansi(dateFrom, dateTo, instansi, admin.role);
     return ok(data);
   } catch (error) {
     if (error instanceof Error && error.message === "INVALID_DATE_RANGE") {
       return fail("Invalid date range", 422);
+    }
+    if (error instanceof Error && error.message === "FORBIDDEN_INSTANSI") {
+      return fail("Forbidden", 403);
     }
 
     const prismaError = error as Prisma.PrismaClientKnownRequestError;
@@ -48,11 +57,14 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const data = await setKuotaRange(parsed.data);
+    const data = await setKuotaRange(parsed.data, admin.role);
     return ok(data);
   } catch (error) {
     if (error instanceof Error && error.message === "INVALID_DATE_RANGE") {
       return fail("Invalid date range", 422);
+    }
+    if (error instanceof Error && error.message === "FORBIDDEN_INSTANSI") {
+      return fail("Forbidden", 403);
     }
 
     const prismaError = error as Prisma.PrismaClientKnownRequestError;
@@ -74,16 +86,24 @@ export async function DELETE(req: NextRequest) {
   const query = {
     tanggal: req.nextUrl.searchParams.get("tanggal") ?? "",
   };
+  const instansiRaw = req.nextUrl.searchParams.get("instansi") || undefined;
+  const instansi = instansiRaw && isInstansi(instansiRaw) ? instansiRaw : undefined;
+  if (instansiRaw && !instansi) {
+    return fail("Invalid query", 422);
+  }
   const parsed = deleteKuotaQuerySchema.safeParse(query);
   if (!parsed.success) {
     return fail("Invalid query", 422, parsed.error.flatten());
   }
 
   try {
-    const result = await deleteKuotaByTanggal(parsed.data.tanggal);
+    const result = await deleteKuotaByTanggal(parsed.data.tanggal, instansi, admin.role);
     if (!result) return fail("Kuota tidak ditemukan", 404);
     return ok(result);
   } catch (error) {
+    if (error instanceof Error && error.message === "FORBIDDEN_INSTANSI") {
+      return fail("Forbidden", 403);
+    }
     if (error instanceof Error && error.message === "QUOTA_HAS_BOOKING") {
       return fail("Kuota tidak bisa dihapus karena sudah memiliki reservasi", 409);
     }

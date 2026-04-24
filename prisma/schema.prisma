@@ -53,11 +53,13 @@ model AdminUser {
 
 model Kuota {
   id            String   @id @default(uuid()) @db.Uuid
-  tanggal       DateTime @unique @db.Date
+  tanggal       DateTime @db.Date
+  instansi      String   @default("Deepublish") @db.Text
   kuotaMax      Int      @map("kuota_max")
   kuotaTerpakai Int      @default(0) @map("kuota_terpakai")
 
-  @@index([tanggal])
+  @@unique([tanggal, instansi])
+  @@index([instansi, tanggal])
   @@map("kuota")
   @@schema("terapi")
 }

@@ -141,14 +141,18 @@ export function BookingForm() {
     useWatch({ control: form.control, name: "instansi" }) ?? "";
   const statusKepesertaanOptions = getStatusKepesertaanOptions(selectedInstansi);
   const tersediaTanggal = availableDates.filter((item) => item.sisa > 0);
-  const isAllQuotaFull = availableDates.length > 0 && tersediaTanggal.length === 0;
-  const isReservationDisabled = isAllQuotaFull;
 
   const loadDates = useCallback(async () => {
+    if (!selectedInstansi) {
+      setAvailableDates([]);
+      setDatesError("");
+      return;
+    }
     setIsLoadingDates(true);
     setDatesError("");
     try {
-      const res = await fetch("/api/terapi/tanggal");
+      const params = new URLSearchParams({ instansi: selectedInstansi });
+      const res = await fetch(`/api/terapi/tanggal?${params.toString()}`);
       const json = await res.json();
       if (!res.ok || !json.success) {
         setDatesError(json.message || "Gagal memuat tanggal jadwal");
@@ -162,7 +166,7 @@ export function BookingForm() {
     } finally {
       setIsLoadingDates(false);
     }
-  }, []);
+  }, [selectedInstansi]);
 
   useEffect(() => {
     void loadDates();
@@ -214,6 +218,10 @@ export function BookingForm() {
 
   useEffect(() => {
     form.resetField("statusKepesertaan");
+    form.setValue("tanggalSesi", "");
+    form.setValue("jamSesi", "");
+    setSessions([]);
+    setSessionsError("");
   }, [selectedInstansi, form]);
 
   useEffect(() => {
@@ -316,14 +324,6 @@ export function BookingForm() {
 
   return (
     <div className="relative w-full max-w-3xl mx-auto bg-card rounded-3xl shadow-xl overflow-hidden border border-border">
-      {isReservationDisabled && (
-        <>
-          <div className="pointer-events-none absolute inset-0 z-20 bg-slate-100/55 backdrop-blur-[1px]" />
-          <div className="pointer-events-none absolute -left-20 top-10 z-30 w-[150%] -rotate-12 bg-[#d62828] py-2 text-center text-sm font-extrabold tracking-[0.2em] text-white shadow-lg">
-            KUOTA PENUH
-          </div>
-        </>
-      )}
       <div className="bg-primary/5 p-6 md:p-8 border-b border-border text-center md:text-left">
         <h2 className="text-2xl md:text-3xl font-bold text-primary mb-2">
           Form Pendaftaran Terapi Deepublish
@@ -331,17 +331,8 @@ export function BookingForm() {
         <p className="text-muted-foreground">Silakan lengkapi data di bawah ini.</p>
       </div>
 
-      {isReservationDisabled && (
-        <p className="mx-6 mt-6 rounded-xl border border-[#d62828]/30 bg-[#fff1f1] px-4 py-3 text-sm font-semibold text-[#b42318] md:mx-8">
-          Seluruh kuota pada tanggal yang tersedia sudah penuh. Form reservasi dinonaktifkan sementara.
-        </p>
-      )}
-
       <form onSubmit={form.handleSubmit(onSubmit)} className="p-6 md:p-8 space-y-7">
-        <fieldset
-          disabled={isReservationDisabled}
-          className={cn("space-y-6 md:space-y-7", isReservationDisabled && "pointer-events-none opacity-80")}
-        >
+        <fieldset className="space-y-6 md:space-y-7">
         <div className="space-y-3">
           <Label>Nama Lengkap</Label>
           <Input
@@ -652,6 +643,10 @@ export function BookingForm() {
                 </div>
                 {isLoadingDates ? (
                   <p className="text-sm text-muted-foreground">Memuat tanggal jadwal...</p>
+                ) : !selectedInstansi ? (
+                  <p className="text-sm text-muted-foreground">
+                    Pilih instansi terlebih dahulu untuk melihat tanggal yang tersedia.
+                  </p>
                 ) : availableDates.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     Belum ada jadwal aktif dari admin. Silakan pilih tanggal lain nanti.
@@ -813,7 +808,7 @@ export function BookingForm() {
           <Button
             type="submit"
             className="w-full py-6 text-lg rounded-2xl shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all active:scale-[0.98]"
-            disabled={form.formState.isSubmitting || isReservationDisabled}
+            disabled={form.formState.isSubmitting}
           >
             {form.formState.isSubmitting ? (
               <>

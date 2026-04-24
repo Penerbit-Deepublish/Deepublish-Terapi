@@ -46,6 +46,10 @@ function normalizeJam(value: string) {
   return value.replaceAll(".", ":").replace(/\s*-\s*/g, " - ").trim();
 }
 
+function resolveQuotaInstansi(instansi?: Instansi) {
+  return instansi ?? "Deepublish";
+}
+
 async function ensureDefaultSessions() {
   const existing = await prisma.sesi.findMany({ select: { jam: true } });
   const normalizedExisting = new Set(existing.map((item) => normalizeJam(item.jam)));
@@ -59,16 +63,17 @@ async function ensureDefaultSessions() {
   });
 }
 
-async function getQuotaSnapshotsForRange(from: Date, to: Date): Promise<QuotaSnapshot[]> {
+async function getQuotaSnapshotsForRange(from: Date, to: Date, instansi?: Instansi): Promise<QuotaSnapshot[]> {
+  const scope = resolveQuotaInstansi(instansi);
   const [sessions, quotas, bookingsByDate] = await Promise.all([
     prisma.sesi.findMany({ select: { id: true } }),
     prisma.kuota.findMany({
-      where: { tanggal: { gte: from, lte: to } },
+      where: { tanggal: { gte: from, lte: to }, instansi: scope },
       select: { id: true, tanggal: true, kuotaMax: true },
     }),
     prisma.terapi.groupBy({
       by: ["tanggalTerapi"],
-      where: { tanggalTerapi: { gte: from, lte: to } },
+      where: { tanggalTerapi: { gte: from, lte: to }, instansi: scope },
       _count: { _all: true },
     }),
   ]);
@@ -104,13 +109,13 @@ async function getQuotaSnapshotsForRange(from: Date, to: Date): Promise<QuotaSna
   return snapshots;
 }
 
-export async function getQuotaByDate(dateString: string) {
+export async function getQuotaByDate(dateString: string, instansi?: Instansi) {
   const tanggal = parseDateOnly(dateString);
-  const [snapshot] = await getQuotaSnapshotsForRange(tanggal, tanggal);
+  const [snapshot] = await getQuotaSnapshotsForRange(tanggal, tanggal, instansi);
   return snapshot;
 }
 
-export async function getQuotaByRange(dateFrom: string, dateTo: string) {
+export async function getQuotaByRange(dateFrom: string, dateTo: string, instansi?: Instansi) {
   const from = parseDateOnly(dateFrom);
   const to = parseDateOnly(dateTo);
 
@@ -118,7 +123,7 @@ export async function getQuotaByRange(dateFrom: string, dateTo: string) {
     throw new Error("INVALID_DATE_RANGE");
   }
 
-  return getQuotaSnapshotsForRange(from, to);
+  return getQuotaSnapshotsForRange(from, to, instansi);
 }
 
 export async function getSesiAvailability(
@@ -175,10 +180,11 @@ export async function getSesiAvailability(
   });
 }
 
-export async function getBookingDateAvailability(): Promise<BookingDateAvailability[]> {
+export async function getBookingDateAvailability(instansi?: Instansi): Promise<BookingDateAvailability[]> {
+  const scope = resolveQuotaInstansi(instansi);
   const today = startOfTodayUtc();
   const rows = await prisma.kuota.findMany({
-    where: { tanggal: { gte: today } },
+    where: { tanggal: { gte: today }, instansi: scope },
     orderBy: { tanggal: "asc" },
     take: 180,
     select: { tanggal: true, kuotaMax: true },
@@ -193,7 +199,7 @@ export async function getBookingDateAvailability(): Promise<BookingDateAvailabil
 
   const bookingsByDate = await prisma.terapi.groupBy({
     by: ["tanggalTerapi"],
-    where: { tanggalTerapi: { gte: from, lte: to } },
+    where: { tanggalTerapi: { gte: from, lte: to }, instansi: scope },
     _count: { _all: true },
   });
 
@@ -225,9 +231,10 @@ export async function createBooking(input: BookingApiInput) {
     "Klinik Utama Bio Elektrik Deepublish";
 
   return prisma.$transaction(async (tx) => {
+    const quotaInstansi = resolveQuotaInstansi(input.instansi);
     const [session, existingQuota, sessionBookings, dailyBookings, sameGenderSessionBookings] = await Promise.all([
       tx.sesi.findUnique({ where: { id: input.sesi_id } }),
-      tx.kuota.findUnique({ where: { tanggal } }),
+      tx.kuota.findUnique({ where: { tanggal_instansi: { tanggal, instansi: quotaInstansi } } }),
       tx.terapi.count({
         where: {
           tanggalTerapi: tanggal,
@@ -238,6 +245,7 @@ export async function createBooking(input: BookingApiInput) {
       tx.terapi.count({
         where: {
           tanggalTerapi: tanggal,
+          instansi: input.instansi,
         },
       }),
       tx.terapi.count({
@@ -296,9 +304,10 @@ export async function createBooking(input: BookingApiInput) {
     });
 
     await tx.kuota.upsert({
-      where: { tanggal },
+      where: { tanggal_instansi: { tanggal, instansi: quotaInstansi } },
       create: {
         tanggal,
+        instansi: quotaInstansi,
         kuotaMax: Math.max(1, quotaMax),
         kuotaTerpakai: quotaTerpakai + 1,
       },

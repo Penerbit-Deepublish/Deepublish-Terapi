@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const data = await getQuotaByDate(parsed.data.tanggal);
+    const data = await getQuotaByDate(parsed.data.tanggal, parsed.data.instansi);
     return ok(data);
   } catch {
     return fail("Failed to load quota", 500);
