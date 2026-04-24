@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Save, Trash2 } from "lucide-react";
 import { DateRangeFilter } from "@/components/admin/date-range-filter";
 import { INSTANSI_OPTIONS, type Instansi } from "@/lib/kepesertaan";
+import { type AdminRole } from "@/lib/admin-roles";
 import {
   Select,
   SelectContent,
@@ -26,6 +27,22 @@ interface KuotaItem {
 
 const PAGE_SIZE = 15;
 
+async function parseJsonSafely(res: Response) {
+  const raw = await res.text();
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as { success?: boolean; message?: string; data?: unknown };
+  } catch {
+    return null;
+  }
+}
+
+function getScopedInstansiByRole(role?: AdminRole): Instansi | null {
+  if (role === "deepublishadmin") return "Deepublish";
+  if (role === "imbsadmin") return "IMBS";
+  return null;
+}
+
 export default function ManageKuota() {
   const [kuotaData, setKuotaData] = useState<KuotaItem[]>([]);
   const [singleEdits, setSingleEdits] = useState<Record<string, number>>({});
@@ -39,6 +56,31 @@ export default function ManageKuota() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [instansi, setInstansi] = useState<Instansi>("Deepublish");
+  const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
+  const [isLoadingRole, setIsLoadingRole] = useState(true);
+  const scopedInstansi = getScopedInstansiByRole(adminRole ?? undefined);
+  const activeInstansi = scopedInstansi ?? instansi;
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      setIsLoadingRole(true);
+      try {
+        const res = await fetch("/api/admin/profile");
+        const json = await parseJsonSafely(res);
+        if (!res.ok || !json?.success) return;
+        const role = (json.data as { role?: AdminRole })?.role;
+        if (!role) return;
+        setAdminRole(role);
+        const forcedInstansi = getScopedInstansiByRole(role);
+        if (forcedInstansi) {
+          setInstansi(forcedInstansi);
+        }
+      } finally {
+        setIsLoadingRole(false);
+      }
+    };
+    void loadProfile();
+  }, []);
 
   const loadKuota = useCallback(async (from: string, to: string, quotaInstansi: Instansi) => {
     setIsLoading(true);
@@ -48,15 +90,15 @@ export default function ManageKuota() {
       if (to) params.set("to", to);
       params.set("instansi", quotaInstansi);
       const res = await fetch(`/api/admin/kuota?${params.toString()}`);
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        setError(json.message || "Gagal memuat kuota");
+      const json = await parseJsonSafely(res);
+      if (!res.ok || !json?.success) {
+        setError(json?.message || "Gagal memuat kuota");
         return;
       }
-      setKuotaData(json.data);
+      setKuotaData((json.data as KuotaItem[]) ?? []);
       setCurrentPage(1);
       setSingleEdits(
-        Object.fromEntries((json.data as KuotaItem[]).map((item) => [item.id, item.kuota_max])),
+        Object.fromEntries((((json.data as KuotaItem[]) ?? []).map((item) => [item.id, item.kuota_max]))),
       );
     } finally {
       setIsLoading(false);
@@ -64,8 +106,9 @@ export default function ManageKuota() {
   }, []);
 
   useEffect(() => {
-    void loadKuota("", "", instansi);
-  }, [loadKuota, instansi]);
+    if (isLoadingRole) return;
+    void loadKuota("", "", activeInstansi);
+  }, [loadKuota, activeInstansi, isLoadingRole]);
 
   const applyMassal = async () => {
     setError("");
@@ -94,19 +137,19 @@ export default function ManageKuota() {
       body: JSON.stringify({
         tanggal_mulai: tanggalMulai,
         tanggal_selesai: tanggalSelesai,
-        instansi,
+        instansi: activeInstansi,
         kuota_max: kuotaMassalNumber,
       }),
     });
-    const json = await res.json();
+    const json = await parseJsonSafely(res);
 
-    if (!res.ok || !json.success) {
-      setError(json.message || "Gagal menerapkan kuota massal");
+    if (!res.ok || !json?.success) {
+      setError(json?.message || "Gagal menerapkan kuota massal");
       return;
     }
 
     setMessage("Kuota massal berhasil disimpan");
-    await loadKuota(dateFrom, dateTo, instansi);
+    await loadKuota(dateFrom, dateTo, activeInstansi);
   };
 
   const saveRow = async (tanggal: string, kuotaMax: number) => {
@@ -116,16 +159,16 @@ export default function ManageKuota() {
     const res = await fetch("/api/admin/kuota", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tanggal, instansi, kuota_max: kuotaMax }),
+      body: JSON.stringify({ tanggal, instansi: activeInstansi, kuota_max: kuotaMax }),
     });
-    const json = await res.json();
-    if (!res.ok || !json.success) {
-      setError(json.message || "Gagal menyimpan kuota");
+    const json = await parseJsonSafely(res);
+    if (!res.ok || !json?.success) {
+      setError(json?.message || "Gagal menyimpan kuota");
       return;
     }
 
     setMessage(`Kuota tanggal ${tanggal} diperbarui`);
-    await loadKuota(dateFrom, dateTo, instansi);
+    await loadKuota(dateFrom, dateTo, activeInstansi);
   };
 
   const deleteRow = async (tanggal: string) => {
@@ -136,19 +179,19 @@ export default function ManageKuota() {
 
     const params = new URLSearchParams({
       tanggal,
-      instansi,
+      instansi: activeInstansi,
     });
     const res = await fetch(`/api/admin/kuota?${params.toString()}`, {
       method: "DELETE",
     });
-    const json = await res.json();
-    if (!res.ok || !json.success) {
-      setError(json.message || "Gagal menghapus kuota");
+    const json = await parseJsonSafely(res);
+    if (!res.ok || !json?.success) {
+      setError(json?.message || "Gagal menghapus kuota");
       return;
     }
 
     setMessage(`Kuota tanggal ${tanggal} berhasil dihapus`);
-    await loadKuota(dateFrom, dateTo, instansi);
+    await loadKuota(dateFrom, dateTo, activeInstansi);
   };
 
   const totalPages = Math.max(1, Math.ceil(kuotaData.length / PAGE_SIZE));
@@ -178,21 +221,28 @@ export default function ManageKuota() {
             <CardTitle>Pengaturan Massal</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Instansi</Label>
-              <Select value={instansi} onValueChange={(value) => setInstansi(value as Instansi)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {INSTANSI_OPTIONS.map((item) => (
-                    <SelectItem key={item} value={item}>
-                      {item}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {scopedInstansi ? (
+              <div className="space-y-2">
+                <Label>Instansi</Label>
+                <Input value={scopedInstansi} readOnly />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Instansi</Label>
+                <Select value={instansi} onValueChange={(value) => setInstansi(value as Instansi)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INSTANSI_OPTIONS.map((item) => (
+                      <SelectItem key={item} value={item}>
+                        {item}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Tanggal Mulai</Label>
               <Input type="date" value={tanggalMulai} onChange={(e) => setTanggalMulai(e.target.value)} />
@@ -234,13 +284,13 @@ export default function ManageKuota() {
                 return;
               }
               setError("");
-              void loadKuota(dateFrom, dateTo, instansi);
+              void loadKuota(dateFrom, dateTo, activeInstansi);
             }}
             onReset={() => {
               setDateFrom("");
               setDateTo("");
               setError("");
-              void loadKuota("", "", instansi);
+              void loadKuota("", "", activeInstansi);
             }}
             isLoading={isLoading}
           />

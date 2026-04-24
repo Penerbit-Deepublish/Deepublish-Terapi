@@ -8,6 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DateRangeFilter } from "@/components/admin/date-range-filter";
+import { INSTANSI_OPTIONS, type Instansi } from "@/lib/kepesertaan";
+import { type AdminRole } from "@/lib/admin-roles";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface JadwalTanggalItem {
   id: string;
@@ -28,6 +37,12 @@ async function parseJsonSafely(res: Response) {
   }
 }
 
+function getScopedInstansiByRole(role?: AdminRole): Instansi | null {
+  if (role === "deepublishadmin") return "Deepublish";
+  if (role === "imbsadmin") return "IMBS";
+  return null;
+}
+
 export default function ManageJadwalPage() {
   const [jadwal, setJadwal] = useState<JadwalTanggalItem[]>([]);
   const [tanggal, setTanggal] = useState("");
@@ -38,13 +53,40 @@ export default function ManageJadwalPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [instansi, setInstansi] = useState<Instansi>("Deepublish");
+  const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
+  const [isLoadingRole, setIsLoadingRole] = useState(true);
+  const scopedInstansi = getScopedInstansiByRole(adminRole ?? undefined);
+  const activeInstansi = scopedInstansi ?? instansi;
 
-  const loadJadwal = useCallback(async (from: string, to: string) => {
+  useEffect(() => {
+    const loadProfile = async () => {
+      setIsLoadingRole(true);
+      try {
+        const res = await fetch("/api/admin/profile");
+        const json = await parseJsonSafely(res);
+        if (!res.ok || !json?.success) return;
+        const role = (json.data as { role?: AdminRole })?.role;
+        if (!role) return;
+        setAdminRole(role);
+        const forcedInstansi = getScopedInstansiByRole(role);
+        if (forcedInstansi) {
+          setInstansi(forcedInstansi);
+        }
+      } finally {
+        setIsLoadingRole(false);
+      }
+    };
+    void loadProfile();
+  }, []);
+
+  const loadJadwal = useCallback(async (from: string, to: string, jadwalInstansi: Instansi) => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
       if (from) params.set("from", from);
       if (to) params.set("to", to);
+      params.set("instansi", jadwalInstansi);
       const res = await fetch(`/api/admin/kuota?${params.toString()}`);
       const json = await parseJsonSafely(res);
       if (!res.ok || !json?.success) {
@@ -61,8 +103,9 @@ export default function ManageJadwalPage() {
   }, []);
 
   useEffect(() => {
-    void loadJadwal("", "");
-  }, [loadJadwal]);
+    if (isLoadingRole) return;
+    void loadJadwal("", "", activeInstansi);
+  }, [loadJadwal, activeInstansi, isLoadingRole]);
 
   const simpanTanggal = async () => {
     setError("");
@@ -84,7 +127,7 @@ export default function ManageJadwalPage() {
     const res = await fetch("/api/admin/kuota", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tanggal, kuota_max: kuotaMaxNumber }),
+      body: JSON.stringify({ tanggal, instansi: activeInstansi, kuota_max: kuotaMaxNumber }),
     });
     const json = await parseJsonSafely(res);
 
@@ -94,7 +137,7 @@ export default function ManageJadwalPage() {
     }
 
     setMessage(`Jadwal tanggal ${tanggal} berhasil disimpan`);
-    await loadJadwal(dateFrom, dateTo);
+    await loadJadwal(dateFrom, dateTo, activeInstansi);
   };
 
   const deleteJadwal = async (tanggalValue: string) => {
@@ -103,7 +146,11 @@ export default function ManageJadwalPage() {
     const confirmed = window.confirm(`Hapus jadwal tanggal ${tanggalValue}?`);
     if (!confirmed) return;
 
-    const res = await fetch(`/api/admin/kuota?tanggal=${encodeURIComponent(tanggalValue)}`, {
+    const params = new URLSearchParams({
+      tanggal: tanggalValue,
+      instansi: activeInstansi,
+    });
+    const res = await fetch(`/api/admin/kuota?${params.toString()}`, {
       method: "DELETE",
     });
     const json = await parseJsonSafely(res);
@@ -113,7 +160,7 @@ export default function ManageJadwalPage() {
     }
 
     setMessage(`Jadwal tanggal ${tanggalValue} berhasil dihapus`);
-    await loadJadwal(dateFrom, dateTo);
+    await loadJadwal(dateFrom, dateTo, activeInstansi);
   };
 
   const totalPages = Math.max(1, Math.ceil(jadwal.length / PAGE_SIZE));
@@ -139,7 +186,29 @@ export default function ManageJadwalPage() {
         <CardHeader>
           <CardTitle>Tambah / Ubah Jadwal Tanggal</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {scopedInstansi ? (
+            <div className="space-y-2">
+              <Label>Instansi</Label>
+              <Input value={scopedInstansi} readOnly />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label>Instansi</Label>
+              <Select value={instansi} onValueChange={(value) => setInstansi(value as Instansi)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {INSTANSI_OPTIONS.map((item) => (
+                    <SelectItem key={item} value={item}>
+                      {item}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-2">
             <Label>Tanggal</Label>
             <Input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} />
@@ -179,13 +248,13 @@ export default function ManageJadwalPage() {
                 return;
               }
               setError("");
-              void loadJadwal(dateFrom, dateTo);
+              void loadJadwal(dateFrom, dateTo, activeInstansi);
             }}
             onReset={() => {
               setDateFrom("");
               setDateTo("");
               setError("");
-              void loadJadwal("", "");
+              void loadJadwal("", "", activeInstansi);
             }}
             isLoading={isLoading}
           />

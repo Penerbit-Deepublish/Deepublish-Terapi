@@ -158,22 +158,34 @@ export async function setKuotaRange(input: {
     bookingStats.map((row) => [formatDateOnly(row.tanggalTerapi), row._count._all] as const),
   );
 
+  const existingRows = await prisma.kuota.findMany({
+    where: { tanggal: { gte: rangeStart, lte: rangeEnd }, instansi: instansiScope },
+    select: { id: true, tanggal: true },
+  });
+  const existingMap = new Map(existingRows.map((row) => [formatDateOnly(row.tanggal), row.id] as const));
+
   const upserts = await prisma.$transaction(
-    ranges.map((tanggal) =>
-      prisma.kuota.upsert({
-        where: { tanggal_instansi: { tanggal, instansi: instansiScope } },
-        create: {
+    ranges.map((tanggal) => {
+      const existingId = existingMap.get(formatDateOnly(tanggal));
+      const kuotaTerpakai = bookedMap.get(formatDateOnly(tanggal)) ?? 0;
+      if (existingId) {
+        return prisma.kuota.update({
+          where: { id: existingId },
+          data: {
+            kuotaMax: input.kuota_max,
+            kuotaTerpakai,
+          },
+        });
+      }
+      return prisma.kuota.create({
+        data: {
           tanggal,
           instansi: instansiScope,
           kuotaMax: input.kuota_max,
-          kuotaTerpakai: bookedMap.get(formatDateOnly(tanggal)) ?? 0,
+          kuotaTerpakai,
         },
-        update: {
-          kuotaMax: input.kuota_max,
-          kuotaTerpakai: bookedMap.get(formatDateOnly(tanggal)) ?? 0,
-        },
-      }),
-    ),
+      });
+    }),
   );
 
   return upserts.map((item) => ({
@@ -236,9 +248,7 @@ export async function deleteKuotaByTanggal(tanggalString: string, requestedInsta
   const tanggal = parseDateOnly(tanggalString);
   const instansiScope = resolveKuotaInstansiScope(role, requestedInstansi);
   return prisma.$transaction(async (tx) => {
-    const kuota = await tx.kuota.findUnique({
-      where: { tanggal_instansi: { tanggal, instansi: instansiScope } },
-    });
+    const kuota = await tx.kuota.findFirst({ where: { tanggal, instansi: instansiScope } });
     if (!kuota) return null;
 
     const bookingCount = await tx.terapi.count({ where: { tanggalTerapi: tanggal, instansi: instansiScope } });
@@ -450,12 +460,10 @@ export async function updatePeserta(id: string, input: z.infer<typeof updatePese
     assertRoleCanAccessInstansi(role, input.instansi);
 
     const [quota, sessionById, sessionByJam] = await Promise.all([
-      tx.kuota.findUnique({
+      tx.kuota.findFirst({
         where: {
-          tanggal_instansi: {
-            tanggal: tanggalTerapi,
-            instansi: input.instansi,
-          },
+          tanggal: tanggalTerapi,
+          instansi: input.instansi,
         },
         select: { id: true, kuotaMax: true },
       }),
@@ -538,12 +546,10 @@ export async function updatePeserta(id: string, input: z.infer<typeof updatePese
     const nextDate = input.tanggal_terapi;
     const quotaMoved = previousDate !== nextDate || existing.instansi !== input.instansi;
     if (quotaMoved) {
-      const previousQuota = await tx.kuota.findUnique({
+      const previousQuota = await tx.kuota.findFirst({
         where: {
-          tanggal_instansi: {
-            tanggal: existing.tanggalTerapi,
-            instansi: existing.instansi as Instansi,
-          },
+          tanggal: existing.tanggalTerapi,
+          instansi: existing.instansi as Instansi,
         },
       });
       if (previousQuota && previousQuota.kuotaTerpakai > 0) {
@@ -604,12 +610,10 @@ export async function deletePeserta(id: string, role?: AdminRole) {
 
     await tx.terapi.delete({ where: { id } });
 
-    const quota = await tx.kuota.findUnique({
+    const quota = await tx.kuota.findFirst({
       where: {
-        tanggal_instansi: {
-          tanggal: existing.tanggalTerapi,
-          instansi: existing.instansi as Instansi,
-        },
+        tanggal: existing.tanggalTerapi,
+        instansi: existing.instansi as Instansi,
       },
     });
     if (quota && quota.kuotaTerpakai > 0) {

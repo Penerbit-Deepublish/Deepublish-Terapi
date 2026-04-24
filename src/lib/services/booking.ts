@@ -232,19 +232,13 @@ export async function createBooking(input: BookingApiInput) {
 
   return prisma.$transaction(async (tx) => {
     const quotaInstansi = resolveQuotaInstansi(input.instansi);
-    const [session, existingQuota, sessionBookings, dailyBookings, sameGenderSessionBookings] = await Promise.all([
+    const [session, existingQuota, sessionBookings, sameGenderSessionBookings] = await Promise.all([
       tx.sesi.findUnique({ where: { id: input.sesi_id } }),
-      tx.kuota.findUnique({ where: { tanggal_instansi: { tanggal, instansi: quotaInstansi } } }),
+      tx.kuota.findFirst({ where: { tanggal, instansi: quotaInstansi } }),
       tx.terapi.count({
         where: {
           tanggalTerapi: tanggal,
           jamSesi: input.sesi_id,
-          instansi: input.instansi,
-        },
-      }),
-      tx.terapi.count({
-        where: {
-          tanggalTerapi: tanggal,
           instansi: input.instansi,
         },
       }),
@@ -269,9 +263,6 @@ export async function createBooking(input: BookingApiInput) {
     if (sameGenderSessionBookings >= getMaxBookingPerGenderPerSession(input.instansi)) {
       throw new Error("GENDER_QUOTA_FULL");
     }
-
-    const quotaMax = existingQuota?.kuotaMax ?? 0;
-    const quotaTerpakai = dailyBookings;
 
     if (!existingQuota) {
       throw new Error("SCHEDULE_NOT_FOUND");
@@ -303,15 +294,9 @@ export async function createBooking(input: BookingApiInput) {
       },
     });
 
-    await tx.kuota.upsert({
-      where: { tanggal_instansi: { tanggal, instansi: quotaInstansi } },
-      create: {
-        tanggal,
-        instansi: quotaInstansi,
-        kuotaMax: Math.max(1, quotaMax),
-        kuotaTerpakai: quotaTerpakai + 1,
-      },
-      update: {
+    await tx.kuota.update({
+      where: { id: existingQuota.id },
+      data: {
         kuotaTerpakai: {
           increment: 1,
         },
