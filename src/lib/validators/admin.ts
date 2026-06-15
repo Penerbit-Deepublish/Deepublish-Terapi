@@ -48,14 +48,6 @@ export const setSesiKuotaSchema = z.object({
   instansi: z.enum(INSTANSI_OPTIONS).optional(),
   kapasitas_laki: z.number().int().min(0).max(20),
   kapasitas_wanita: z.number().int().min(0).max(20),
-}).superRefine((value, ctx) => {
-  if (value.kapasitas_laki + value.kapasitas_wanita < 1) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Minimal salah satu kuota gender harus lebih dari 0.",
-      path: ["kapasitas_laki"],
-    });
-  }
 });
 
 export const setBulkSesiKuotaSchema = z.object({
@@ -65,16 +57,6 @@ export const setBulkSesiKuotaSchema = z.object({
     kapasitas_laki: z.number().int().min(0).max(20),
     kapasitas_wanita: z.number().int().min(0).max(20),
   })).min(1),
-}).superRefine((value, ctx) => {
-  value.items.forEach((item, index) => {
-    if (item.kapasitas_laki + item.kapasitas_wanita < 1) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Minimal salah satu kuota gender harus lebih dari 0.",
-        path: ["items", index, "kapasitas_laki"],
-      });
-    }
-  });
 });
 
 export const pesertaQuerySchema = z.object({

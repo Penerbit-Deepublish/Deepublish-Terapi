@@ -738,8 +738,9 @@ export function BookingForm() {
                         const slot = sessionByJam.get(normalizeJam(jam));
                         const slotId = slot?.id ?? "";
                         const isConfigured = Boolean(slotId);
-                        const isFull = isConfigured && !slot?.tersedia;
-                        const isDisabled = !isConfigured || isFull;
+                        const isZero = isConfigured && slot?.kapasitas === 0;
+                        const isFull = isConfigured && !isZero && !slot?.tersedia;
+                        const isDisabled = !isConfigured || isZero || isFull;
                         const isSelected = field.value === slotId;
                         return (
                           <button
@@ -755,7 +756,7 @@ export function BookingForm() {
                               focusStrokeClass,
                               !isConfigured
                                 ? "opacity-50 cursor-not-allowed bg-muted text-muted-foreground border-transparent"
-                                : isFull
+                                : isZero || isFull
                                   ? "opacity-70 cursor-not-allowed bg-muted text-muted-foreground border-transparent"
                                 : isSelected
                                   ? "border-[#185cab] bg-[#185cab] text-white shadow-sm shadow-[#185cab]/40"
@@ -768,6 +769,16 @@ export function BookingForm() {
                                 Belum tersedia
                               </span>
                             )}
+                            {isZero && (
+                              <span
+                                className={cn(
+                                  "block text-xs mt-1 font-semibold",
+                                  isSelected ? "text-amber-200" : "text-amber-600",
+                                )}
+                              >
+                                Tidak tersedia
+                              </span>
+                            )}
                             {isFull && (
                               <span
                                 className={cn(
@@ -778,7 +789,7 @@ export function BookingForm() {
                                 Penuh
                               </span>
                             )}
-                            {isConfigured && (
+                            {isConfigured && !isZero && (
                               <span
                                 className={cn(
                                   "block text-[11px] mt-1 font-medium",
