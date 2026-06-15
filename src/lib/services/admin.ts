@@ -423,6 +423,76 @@ export async function upsertSesiKuota(
   };
 }
 
+export async function upsertBulkSesiKuota(
+  input: {
+    instansi?: Instansi;
+    items: Array<{
+      sesi_id: string;
+      kapasitas_laki: number;
+      kapasitas_wanita: number;
+    }>;
+  },
+  role?: AdminRole,
+) {
+  const instansiScope = resolveKuotaInstansiScope(role, input.instansi);
+
+  return prisma.$transaction(async (tx) => {
+    const results = [];
+    for (const item of input.items) {
+      const kuotaMax = item.kapasitas_laki + item.kapasitas_wanita;
+
+      const [session, existing] = await Promise.all([
+        tx.sesi.findUnique({
+          where: { id: item.sesi_id },
+          select: { id: true, jam: true },
+        }),
+        tx.sesiInstansiQuota.findFirst({
+          where: { sesiId: item.sesi_id, instansi: instansiScope },
+          select: { id: true },
+        }),
+      ]);
+
+      if (!session) {
+        throw new Error(`SESI_NOT_FOUND:${item.sesi_id}`);
+      }
+
+      const row = existing
+        ? await tx.sesiInstansiQuota.update({
+            where: { id: existing.id },
+            data: {
+              kuotaMax,
+              kapasitasLaki: item.kapasitas_laki,
+              kapasitasWanita: item.kapasitas_wanita,
+            },
+          })
+        : await tx.sesiInstansiQuota.create({
+            data: {
+              sesiId: item.sesi_id,
+              instansi: instansiScope,
+              kuotaMax,
+              kapasitasLaki: item.kapasitas_laki,
+              kapasitasWanita: item.kapasitas_wanita,
+            },
+          });
+
+      results.push({
+        jadwal_id: row.id,
+        instansi_quota_id: row.id,
+        sesi_id: session.id,
+        instansi: instansiScope,
+        jam: session.jam,
+        kuota_max: row.kuotaMax,
+        kapasitas_laki: row.kapasitasLaki,
+        kapasitas_wanita: row.kapasitasWanita,
+        kuota_terpakai: 0,
+        terpakai_laki: 0,
+        terpakai_wanita: 0,
+      });
+    }
+    return results;
+  });
+}
+
 export async function listPeserta(
   page: number,
   pageSize: number,

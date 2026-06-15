@@ -75,6 +75,7 @@ export default function ManageKuota() {
   const [sesiKuotaData, setSesiKuotaData] = useState<SesiKuotaItem[]>([]);
   const [sesiKuotaEdits, setSesiKuotaEdits] = useState<Record<string, { laki: number; wanita: number }>>({});
   const [isLoadingSesiKuota, setIsLoadingSesiKuota] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
   const [isLoadingRole, setIsLoadingRole] = useState(true);
   const scopedInstansi = getScopedInstansiByRole(adminRole ?? undefined);
@@ -270,6 +271,45 @@ export default function ManageKuota() {
     await loadSesiKuota(activeInstansi);
   };
 
+  const saveAllSesiKuota = async () => {
+    setError("");
+    setMessage("");
+    setIsSaving(true);
+
+    try {
+      const items = sesiKuotaData.map((item) => {
+        const edit = sesiKuotaEdits[item.sesi_id] ?? {
+          laki: item.kapasitas_laki,
+          wanita: item.kapasitas_wanita,
+        };
+        return {
+          sesi_id: item.sesi_id,
+          kapasitas_laki: edit.laki,
+          kapasitas_wanita: edit.wanita,
+        };
+      });
+
+      const res = await fetch("/api/admin/sesi-kuota", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          instansi: activeInstansi,
+          items,
+        }),
+      });
+      const json = await parseJsonSafely(res);
+      if (!res.ok || !json?.success) {
+        setError(json?.message || "Gagal menyimpan semua kuota sesi");
+        return;
+      }
+
+      setMessage(`Semua kuota sesi untuk instansi ${activeInstansi} berhasil diperbarui`);
+      await loadSesiKuota(activeInstansi);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(kuotaData.length / PAGE_SIZE));
   const startIndex = (currentPage - 1) * PAGE_SIZE;
   const paginatedKuota = kuotaData.slice(startIndex, startIndex + PAGE_SIZE);
@@ -456,15 +496,21 @@ export default function ManageKuota() {
               Atur kuota laki-laki dan perempuan per sesi untuk instansi {activeInstansi}. Pengaturan ini berlaku
               untuk semua tanggal.
             </p>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setError("");
-                void loadSesiKuota(activeInstansi);
-              }}
-            >
-              Muat Ulang
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setError("");
+                  void loadSesiKuota(activeInstansi);
+                }}
+              >
+                Muat Ulang
+              </Button>
+              <Button onClick={saveAllSesiKuota} disabled={isSaving || isLoadingSesiKuota}>
+                <Save className="w-4 h-4 mr-2" />
+                {isSaving ? "Menyimpan..." : "Simpan Semua"}
+              </Button>
+            </div>
           </div>
 
           <div className="border rounded-md">
@@ -475,22 +521,19 @@ export default function ManageKuota() {
                   <TableHead>Kuota L</TableHead>
                   <TableHead>Kuota P</TableHead>
                   <TableHead>Total</TableHead>
-                  <TableHead>Terpakai L</TableHead>
-                  <TableHead>Terpakai P</TableHead>
-                  <TableHead>Terpakai Total</TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoadingSesiKuota ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
                       Memuat data sesi...
                     </TableCell>
                   </TableRow>
                 ) : sesiKuotaData.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
                       Belum ada sesi yang bisa diatur.
                     </TableCell>
                   </TableRow>
@@ -538,9 +581,6 @@ export default function ManageKuota() {
                           />
                         </TableCell>
                         <TableCell>{edit.laki + edit.wanita}</TableCell>
-                        <TableCell>{item.terpakai_laki}</TableCell>
-                        <TableCell>{item.terpakai_wanita}</TableCell>
-                        <TableCell>{item.kuota_terpakai}</TableCell>
                         <TableCell className="text-right">
                           <Button variant="outline" size="sm" onClick={() => saveSesiKuota(item)}>
                             Simpan
