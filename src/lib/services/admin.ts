@@ -8,6 +8,7 @@ import { updatePesertaSchema } from "@/lib/validators/admin";
 import { getAdminInstansiScope, type AdminRole } from "@/lib/admin-roles";
 import type { Instansi } from "@/lib/kepesertaan";
 import { getMaxBookingPerGenderPerSession, getMaxBookingPerSession } from "@/lib/quota";
+import { getDefaultSesiQuota, getSesiQuotaBaseMap, getSesiQuotaOverridesMap, resolveSesiQuota } from "@/lib/services/sesi-quota";
 
 function getEffectiveSessionCapacityPerInstansi(kapasitas: number) {
   void kapasitas;
@@ -16,6 +17,34 @@ function getEffectiveSessionCapacityPerInstansi(kapasitas: number) {
 
 function normalizeJam(value: string) {
   return value.replaceAll(".", ":").replace(/\s*-\s*/g, " - ").trim();
+}
+
+const DEFAULT_SESSION_TIMES = [
+  "09:00 - 10:00",
+  "10:00 - 11:00",
+  "11:00 - 12:00",
+  "13:00 - 14:00",
+  "14:00 - 15:00",
+  "15:00 - 16:00",
+] as const;
+
+async function ensureDefaultSessions() {
+  const existing = await prisma.sesi.findMany({ select: { jam: true } });
+  const normalizedExisting = new Set(existing.map((item) => normalizeJam(item.jam)));
+  const missing = DEFAULT_SESSION_TIMES.filter((jam) => !normalizedExisting.has(normalizeJam(jam)));
+
+  if (missing.length === 0) return;
+
+  const fallback = getDefaultSesiQuota("Deepublish");
+  await prisma.sesi.createMany({
+    data: missing.map((jam) => ({
+      jam,
+      kapasitas: fallback.kuotaMax,
+      kapasitasLaki: fallback.kapasitasLaki,
+      kapasitasWanita: fallback.kapasitasWanita,
+    })),
+    skipDuplicates: true,
+  });
 }
 
 function buildInstansiScopeWhere(role?: AdminRole): Prisma.TerapiWhereInput {
@@ -51,7 +80,7 @@ export async function getDashboardData(input?: { from?: string; to?: string; rol
   const scopedWhere = buildInstansiScopeWhere(input?.role);
   const instansiScope = getAdminInstansiScope(input?.role);
 
-  const [monthlyCount, todayQuota, sessions, weekBookings, todayBookings] = await Promise.all([
+  const [monthlyCount, todayQuota, sessions, weekBookings, todayBookings, sesiBaseQuotas, sesiOverrides] = await Promise.all([
     prisma.terapi.count({
       where: isFiltered
         ? { ...scopedWhere, tanggalTerapi: { gte: rangeStart, lte: rangeEnd } }
@@ -67,6 +96,8 @@ export async function getDashboardData(input?: { from?: string; to?: string; rol
       where: { ...scopedWhere, tanggalTerapi: rangeEnd },
       select: { jamSesi: true, jenisKelamin: true },
     }),
+    instansiScope ? getSesiQuotaBaseMap(instansiScope) : Promise.resolve(new Map()),
+    instansiScope ? getSesiQuotaOverridesMap(rangeEnd, instansiScope) : Promise.resolve(new Map()),
   ]);
 
   const dailyMap = new Map<string, number>();
@@ -89,8 +120,6 @@ export async function getDashboardData(input?: { from?: string; to?: string; rol
   }, {});
 
   const quotaScope = instansiScope ?? "ALL";
-  const kapasitasTotal = getMaxBookingPerSession(quotaScope);
-  const kapasitasPerGender = getMaxBookingPerGenderPerSession(quotaScope);
 
   return {
     stats: {
@@ -106,16 +135,24 @@ export async function getDashboardData(input?: { from?: string; to?: string; rol
       penggunaan_kuota_per_sesi: sessions.map((item) => {
         const usage = todayMap[item.id] || { total: 0, laki: 0, wanita: 0 };
         const terpakai = usage.total;
+        const quota = instansiScope
+          ? resolveSesiQuota(sesiBaseQuotas, sesiOverrides, item.id, instansiScope)
+          : {
+              instansiQuotaId: null,
+              kuotaMax: getMaxBookingPerSession(quotaScope),
+              kapasitasLaki: getMaxBookingPerGenderPerSession(quotaScope),
+              kapasitasWanita: getMaxBookingPerGenderPerSession(quotaScope),
+            };
         return {
           sesi_id: item.id,
           jam: item.jam,
           terpakai,
           terpakai_laki: usage.laki,
           terpakai_wanita: usage.wanita,
-          kapasitas_total: kapasitasTotal,
-          kapasitas_laki: kapasitasPerGender,
-          kapasitas_wanita: kapasitasPerGender,
-          sisa: Math.max(0, kapasitasTotal - terpakai),
+          kapasitas_total: quota.kuotaMax,
+          kapasitas_laki: quota.kapasitasLaki,
+          kapasitas_wanita: quota.kapasitasWanita,
+          sisa: Math.max(0, quota.kuotaMax - terpakai),
         };
       }),
     },
@@ -290,6 +327,102 @@ export async function listSesi() {
   }));
 }
 
+export async function listSesiKuotaByTanggal(
+  requestedInstansi?: Instansi,
+  role?: AdminRole,
+) {
+  const instansiScope = resolveKuotaInstansiScope(role, requestedInstansi);
+  await ensureDefaultSessions();
+
+  const [sessions, baseQuotas] = await Promise.all([
+    prisma.sesi.findMany({
+      orderBy: { jam: "asc" },
+      select: { id: true, jam: true },
+    }),
+    getSesiQuotaBaseMap(instansiScope),
+  ]);
+
+  return sessions.map((session) => {
+    const quota = resolveSesiQuota(baseQuotas, new Map(), session.id, instansiScope);
+    return {
+      sesi_id: session.id,
+      jadwal_id: quota.jadwalId,
+      instansi_quota_id: quota.instansiQuotaId,
+      instansi: instansiScope,
+      jam: session.jam,
+      kuota_max: quota.kuotaMax,
+      kapasitas_laki: quota.kapasitasLaki,
+      kapasitas_wanita: quota.kapasitasWanita,
+      kuota_terpakai: 0,
+      terpakai_laki: 0,
+      terpakai_wanita: 0,
+      sisa_laki: quota.kapasitasLaki,
+      sisa_wanita: quota.kapasitasWanita,
+    };
+  });
+}
+
+export async function upsertSesiKuota(
+  input: {
+    sesi_id: string;
+    instansi?: Instansi;
+    kapasitas_laki: number;
+    kapasitas_wanita: number;
+  },
+  role?: AdminRole,
+) {
+  const instansiScope = resolveKuotaInstansiScope(role, input.instansi);
+  const kuotaMax = input.kapasitas_laki + input.kapasitas_wanita;
+
+  const [session, existing] = await Promise.all([
+    prisma.sesi.findUnique({
+      where: { id: input.sesi_id },
+      select: { id: true, jam: true },
+    }),
+    prisma.sesiInstansiQuota.findFirst({
+      where: { sesiId: input.sesi_id, instansi: instansiScope },
+      select: { id: true },
+    }),
+  ]);
+
+  if (!session) {
+    throw new Error("SESI_NOT_FOUND");
+  }
+
+  const row = existing
+    ? await prisma.sesiInstansiQuota.update({
+        where: { id: existing.id },
+        data: {
+          kuotaMax,
+          kapasitasLaki: input.kapasitas_laki,
+          kapasitasWanita: input.kapasitas_wanita,
+        },
+      })
+    : await prisma.sesiInstansiQuota.create({
+        data: {
+          sesiId: input.sesi_id,
+          instansi: instansiScope,
+          kuotaMax,
+          kapasitasLaki: input.kapasitas_laki,
+          kapasitasWanita: input.kapasitas_wanita,
+        },
+      });
+
+  return {
+    jadwal_id: row.id,
+    instansi_quota_id: row.id,
+    sesi_id: session.id,
+    instansi: instansiScope,
+    jam: session.jam,
+    kuota_max: row.kuotaMax,
+    kapasitas_laki: row.kapasitasLaki,
+    kapasitas_wanita: row.kapasitasWanita,
+    kuota_terpakai: 0,
+    terpakai_laki: 0,
+    terpakai_wanita: 0,
+  };
+}
+
 export async function listPeserta(
   page: number,
   pageSize: number,
@@ -451,7 +584,14 @@ export async function updatePeserta(id: string, input: z.infer<typeof updatePese
   return prisma.$transaction(async (tx) => {
     const existing = await tx.terapi.findUnique({
       where: { id },
-      select: { id: true, tanggalTerapi: true, jamSesi: true, jenisKelamin: true, instansi: true },
+      select: {
+        id: true,
+        tanggalTerapi: true,
+        jamSesi: true,
+        jenisKelamin: true,
+        instansi: true,
+        jadwalTerapiId: true,
+      },
     });
     if (!existing) {
       return null;
@@ -485,7 +625,20 @@ export async function updatePeserta(id: string, input: z.infer<typeof updatePese
       throw new Error("SCHEDULE_NOT_FOUND");
     }
 
-    const [sessionBookings, sameGenderSessionBookings, dailyBookings] = await Promise.all([
+    const [nextSchedule, nextBaseQuota, sessionBookings, sameGenderSessionBookings, dailyBookings] = await Promise.all([
+      tx.jadwalTerapi.findFirst({
+        where: {
+          tanggal: tanggalTerapi,
+          sesiId: session.id,
+          instansi: input.instansi,
+        },
+      }),
+      tx.sesiInstansiQuota.findFirst({
+        where: {
+          sesiId: session.id,
+          instansi: input.instansi,
+        },
+      }),
       tx.terapi.count({
         where: {
           id: { not: id },
@@ -512,10 +665,22 @@ export async function updatePeserta(id: string, input: z.infer<typeof updatePese
       }),
     ]);
 
-    if (sessionBookings >= getMaxBookingPerSession(input.instansi)) {
+    const sessionCapacity =
+      nextSchedule?.kuotaMax ??
+      nextBaseQuota?.kuotaMax ??
+      getMaxBookingPerSession(input.instansi);
+    const sameGenderCapacity = input.jenis_kelamin === "L"
+      ? (nextSchedule?.kapasitasLaki ??
+        nextBaseQuota?.kapasitasLaki ??
+        getMaxBookingPerGenderPerSession(input.instansi))
+      : (nextSchedule?.kapasitasWanita ??
+        nextBaseQuota?.kapasitasWanita ??
+        getMaxBookingPerGenderPerSession(input.instansi));
+
+    if (sessionBookings >= sessionCapacity) {
       throw new Error("SESI_FULL");
     }
-    if (sameGenderSessionBookings >= getMaxBookingPerGenderPerSession(input.instansi)) {
+    if (sameGenderSessionBookings >= sameGenderCapacity) {
       throw new Error("GENDER_QUOTA_FULL");
     }
     if (dailyBookings >= quota.kuotaMax) {
@@ -534,6 +699,7 @@ export async function updatePeserta(id: string, input: z.infer<typeof updatePese
         jenisKelamin: input.jenis_kelamin,
         paket: input.paket,
         jamSesi: session.id,
+        jadwalTerapiId: nextSchedule?.id ?? null,
         keluhanLuar: input.keluhan_luar,
         keluhanLuarLainnya: input.keluhan_luar_lainnya?.trim() || null,
         keluhanDalam: input.keluhan_dalam,
@@ -577,6 +743,36 @@ export async function updatePeserta(id: string, input: z.infer<typeof updatePese
         where: { id: session.id },
         data: { terisi: { increment: 1 } },
       });
+    }
+
+    const previousSchedule = existing.jadwalTerapiId
+      ? await tx.jadwalTerapi.findUnique({ where: { id: existing.jadwalTerapiId } })
+      : await tx.jadwalTerapi.findFirst({
+          where: {
+            tanggal: existing.tanggalTerapi,
+            sesiId: existing.jamSesi,
+            instansi: existing.instansi,
+          },
+        });
+    const scheduleMoved =
+      previousSchedule?.id !== nextSchedule?.id ||
+      formatDateOnly(existing.tanggalTerapi) !== input.tanggal_terapi ||
+      existing.instansi !== input.instansi ||
+      existing.jamSesi !== session.id;
+
+    if (scheduleMoved) {
+      if (previousSchedule && previousSchedule.kuotaTerpakai > 0) {
+        await tx.jadwalTerapi.update({
+          where: { id: previousSchedule.id },
+          data: { kuotaTerpakai: { decrement: 1 } },
+        });
+      }
+      if (nextSchedule) {
+        await tx.jadwalTerapi.update({
+          where: { id: nextSchedule.id },
+          data: { kuotaTerpakai: { increment: 1 } },
+        });
+      }
     }
 
     return {
@@ -626,6 +822,22 @@ export async function deletePeserta(id: string, role?: AdminRole) {
     const sesi = await tx.sesi.findUnique({ where: { id: existing.jamSesi } });
     if (sesi && sesi.terisi > 0) {
       await tx.sesi.update({ where: { id: sesi.id }, data: { terisi: { decrement: 1 } } });
+    }
+
+    const jadwal = existing.jadwalTerapiId
+      ? await tx.jadwalTerapi.findUnique({ where: { id: existing.jadwalTerapiId } })
+      : await tx.jadwalTerapi.findFirst({
+          where: {
+            tanggal: existing.tanggalTerapi,
+            sesiId: existing.jamSesi,
+            instansi: existing.instansi as Instansi,
+          },
+        });
+    if (jadwal && jadwal.kuotaTerpakai > 0) {
+      await tx.jadwalTerapi.update({
+        where: { id: jadwal.id },
+        data: { kuotaTerpakai: { decrement: 1 } },
+      });
     }
 
     return { id };

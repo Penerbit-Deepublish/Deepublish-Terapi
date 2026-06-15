@@ -65,14 +65,35 @@ model Kuota {
 }
 
 model Sesi {
-  id           String         @id @default(uuid()) @db.Uuid
-  jam          String         @unique @db.Text
-  kapasitas    Int
-  terisi       Int            @default(0)
-  jadwalTerapi JadwalTerapi[]
+  id                String             @id @default(uuid()) @db.Uuid
+  jam               String             @unique @db.Text
+  kapasitas         Int
+  kapasitasLaki     Int                @default(2) @map("kapasitas_laki")
+  kapasitasWanita   Int                @default(2) @map("kapasitas_wanita")
+  terisi            Int                @default(0)
+  jadwalTerapi      JadwalTerapi[]
+  instansiQuotas    SesiInstansiQuota[]
 
   @@index([jam])
   @@map("sesi")
+  @@schema("terapi")
+}
+
+model SesiInstansiQuota {
+  id              String   @id @default(uuid()) @db.Uuid
+  sesiId          String   @map("sesi_id") @db.Uuid
+  instansi        String   @default("Deepublish") @db.Text
+  kuotaMax        Int      @default(4) @map("kuota_max")
+  kapasitasLaki   Int      @default(2) @map("kapasitas_laki")
+  kapasitasWanita Int      @default(2) @map("kapasitas_wanita")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  sesi Sesi @relation(fields: [sesiId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([sesiId, instansi])
+  @@index([instansi])
+  @@map("sesi_instansi_quota")
   @@schema("terapi")
 }
 
@@ -80,7 +101,10 @@ model JadwalTerapi {
   id            String   @id @default(uuid()) @db.Uuid
   tanggal       DateTime @db.Date
   sesiId        String   @map("sesi_id") @db.Uuid
+  instansi      String   @default("Deepublish") @db.Text
   kuotaMax      Int      @default(3) @map("kuota_max")
+  kapasitasLaki Int      @default(2) @map("kapasitas_laki")
+  kapasitasWanita Int    @default(2) @map("kapasitas_wanita")
   kuotaTerpakai Int      @default(0) @map("kuota_terpakai")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
@@ -88,9 +112,10 @@ model JadwalTerapi {
   sesi      Sesi     @relation(fields: [sesiId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   reservasi Terapi[]
 
-  @@unique([tanggal, sesiId])
+  @@unique([tanggal, sesiId, instansi])
   @@index([tanggal])
   @@index([sesiId])
+  @@index([instansi, tanggal])
   @@map("jadwal_terapi")
   @@schema("terapi")
 }

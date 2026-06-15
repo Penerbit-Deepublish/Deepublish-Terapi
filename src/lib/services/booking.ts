@@ -3,6 +3,7 @@ import { BookingApiInput } from "@/lib/validators/terapi";
 import { addDays, formatDateOnly, parseDateOnly, startOfTodayUtc } from "@/lib/services/date";
 import type { Instansi } from "@/lib/kepesertaan";
 import { getMaxBookingPerGenderPerSession, getMaxBookingPerSession } from "@/lib/quota";
+import { getSesiQuotaBaseMap, getSesiQuotaOverridesMap, resolveSesiQuota } from "@/lib/services/sesi-quota";
 
 export interface SessionAvailability {
   id: string;
@@ -135,12 +136,14 @@ export async function getSesiAvailability(
   await ensureDefaultSessions();
 
   const scope = instansi ?? "Deepublish";
-  const [sessions, bookings] = await Promise.all([
+  const [sessions, bookings, baseQuotas, overrides] = await Promise.all([
     prisma.sesi.findMany({ orderBy: { jam: "asc" } }),
     prisma.terapi.findMany({
       where: { tanggalTerapi: tanggal, instansi: scope },
       select: { jamSesi: true, jenisKelamin: true },
     }),
+    getSesiQuotaBaseMap(scope),
+    getSesiQuotaOverridesMap(tanggal, scope),
   ]);
 
   const bookedMap = bookings.reduce<Record<string, { total: number; laki: number; wanita: number }>>((acc, item) => {
@@ -154,10 +157,10 @@ export async function getSesiAvailability(
   return sessions.map((s) => {
     const bookingRow = bookedMap[s.id] || { total: 0, laki: 0, wanita: 0 };
     const terisiTanggal = bookingRow.total;
-    const kapasitas = getMaxBookingPerSession(scope);
-    const perGenderMax = getMaxBookingPerGenderPerSession(scope);
-    const sisaLaki = Math.max(0, perGenderMax - bookingRow.laki);
-    const sisaWanita = Math.max(0, perGenderMax - bookingRow.wanita);
+    const quota = resolveSesiQuota(baseQuotas, overrides, s.id, scope);
+    const kapasitas = quota.kuotaMax;
+    const sisaLaki = Math.max(0, quota.kapasitasLaki - bookingRow.laki);
+    const sisaWanita = Math.max(0, quota.kapasitasWanita - bookingRow.wanita);
     const sisaTotal = Math.max(0, kapasitas - terisiTanggal);
     const tersediaUntukGender =
       jenisKelamin === "L"
@@ -232,9 +235,15 @@ export async function createBooking(input: BookingApiInput) {
 
   return prisma.$transaction(async (tx) => {
     const quotaInstansi = resolveQuotaInstansi(input.instansi);
-    const [session, existingQuota, sessionBookings, sameGenderSessionBookings] = await Promise.all([
+    const [session, existingQuota, sessionBaseQuota, sessionSchedule, sessionBookings, sameGenderSessionBookings] = await Promise.all([
       tx.sesi.findUnique({ where: { id: input.sesi_id } }),
       tx.kuota.findFirst({ where: { tanggal, instansi: quotaInstansi } }),
+      tx.sesiInstansiQuota.findFirst({
+        where: { sesiId: input.sesi_id, instansi: quotaInstansi },
+      }),
+      tx.jadwalTerapi.findFirst({
+        where: { tanggal, sesiId: input.sesi_id, instansi: quotaInstansi },
+      }),
       tx.terapi.count({
         where: {
           tanggalTerapi: tanggal,
@@ -256,11 +265,22 @@ export async function createBooking(input: BookingApiInput) {
       throw new Error("SESI_NOT_FOUND");
     }
 
-    const sessionCapacity = getMaxBookingPerSession(input.instansi);
+    const sessionCapacity =
+      sessionSchedule?.kuotaMax ??
+      sessionBaseQuota?.kuotaMax ??
+      getMaxBookingPerSession(input.instansi);
+    const perGenderCapacity =
+      input.jenis_kelamin === "L"
+        ? (sessionSchedule?.kapasitasLaki ??
+          sessionBaseQuota?.kapasitasLaki ??
+          getMaxBookingPerGenderPerSession(input.instansi))
+        : (sessionSchedule?.kapasitasWanita ??
+          sessionBaseQuota?.kapasitasWanita ??
+          getMaxBookingPerGenderPerSession(input.instansi));
     if (sessionBookings >= sessionCapacity) {
       throw new Error("SESI_FULL");
     }
-    if (sameGenderSessionBookings >= getMaxBookingPerGenderPerSession(input.instansi)) {
+    if (sameGenderSessionBookings >= perGenderCapacity) {
       throw new Error("GENDER_QUOTA_FULL");
     }
 
@@ -284,6 +304,7 @@ export async function createBooking(input: BookingApiInput) {
         keluhanLuarLainnya: input.keluhan_luar_lainnya?.trim() || null,
         keluhanDalam: input.keluhan_dalam,
         keluhanDalamLainnya: input.keluhan_dalam_lainnya?.trim() || null,
+        jadwalTerapiId: sessionSchedule?.id ?? null,
         // Backward-compatible combined field (used by some existing admin UI/search)
         keluhan: [
           ...input.keluhan_luar,
@@ -307,6 +328,13 @@ export async function createBooking(input: BookingApiInput) {
       where: { id: session.id },
       data: { terisi: { increment: 1 } },
     });
+
+    if (sessionSchedule) {
+      await tx.jadwalTerapi.update({
+        where: { id: sessionSchedule.id },
+        data: { kuotaTerpakai: { increment: 1 } },
+      });
+    }
 
     return {
       id: booking.id,

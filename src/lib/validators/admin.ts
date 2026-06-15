@@ -39,6 +39,25 @@ export const setSesiSchema = z.object({
   kapasitas: z.number().int().min(1).max(4),
 });
 
+export const sesiKuotaQuerySchema = z.object({
+  instansi: z.enum(INSTANSI_OPTIONS).optional(),
+});
+
+export const setSesiKuotaSchema = z.object({
+  sesi_id: z.uuid(),
+  instansi: z.enum(INSTANSI_OPTIONS).optional(),
+  kapasitas_laki: z.number().int().min(0).max(20),
+  kapasitas_wanita: z.number().int().min(0).max(20),
+}).superRefine((value, ctx) => {
+  if (value.kapasitas_laki + value.kapasitas_wanita < 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Minimal salah satu kuota gender harus lebih dari 0.",
+      path: ["kapasitas_laki"],
+    });
+  }
+});
+
 export const pesertaQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(15),

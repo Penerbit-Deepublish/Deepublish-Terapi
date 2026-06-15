@@ -21,8 +21,24 @@ import {
 interface KuotaItem {
   id: string;
   tanggal: string;
-  kuota_max: number; 
+  kuota_max: number;
   kuota_terpakai: number;
+}
+
+interface SesiKuotaItem {
+  sesi_id: string;
+  jadwal_id: string | null;
+  instansi_quota_id?: string | null;
+  instansi: Instansi;
+  jam: string;
+  kuota_max: number;
+  kapasitas_laki: number;
+  kapasitas_wanita: number;
+  kuota_terpakai: number;
+  terpakai_laki: number;
+  terpakai_wanita: number;
+  sisa_laki: number;
+  sisa_wanita: number;
 }
 
 const PAGE_SIZE = 15;
@@ -56,6 +72,9 @@ export default function ManageKuota() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [instansi, setInstansi] = useState<Instansi>("Deepublish");
+  const [sesiKuotaData, setSesiKuotaData] = useState<SesiKuotaItem[]>([]);
+  const [sesiKuotaEdits, setSesiKuotaEdits] = useState<Record<string, { laki: number; wanita: number }>>({});
+  const [isLoadingSesiKuota, setIsLoadingSesiKuota] = useState(true);
   const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
   const [isLoadingRole, setIsLoadingRole] = useState(true);
   const scopedInstansi = getScopedInstansiByRole(adminRole ?? undefined);
@@ -105,10 +124,38 @@ export default function ManageKuota() {
     }
   }, []);
 
+  const loadSesiKuota = useCallback(async (quotaInstansi: Instansi) => {
+    setIsLoadingSesiKuota(true);
+    try {
+      const params = new URLSearchParams({
+        instansi: quotaInstansi,
+      });
+      const res = await fetch(`/api/admin/sesi-kuota?${params.toString()}`);
+      const json = await parseJsonSafely(res);
+      if (!res.ok || !json?.success) {
+        setError(json?.message || "Gagal memuat kuota sesi");
+        return;
+      }
+      const items = (json.data as SesiKuotaItem[]) ?? [];
+      setSesiKuotaData(items);
+      setSesiKuotaEdits(
+        Object.fromEntries(
+          items.map((item) => [
+            item.sesi_id,
+            { laki: item.kapasitas_laki, wanita: item.kapasitas_wanita },
+          ]),
+        ),
+      );
+    } finally {
+      setIsLoadingSesiKuota(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (isLoadingRole) return;
     void loadKuota("", "", activeInstansi);
-  }, [loadKuota, activeInstansi, isLoadingRole]);
+    void loadSesiKuota(activeInstansi);
+  }, [loadKuota, loadSesiKuota, activeInstansi, isLoadingRole]);
 
   const applyMassal = async () => {
     setError("");
@@ -192,6 +239,35 @@ export default function ManageKuota() {
 
     setMessage(`Kuota tanggal ${tanggal} berhasil dihapus`);
     await loadKuota(dateFrom, dateTo, activeInstansi);
+  };
+
+  const saveSesiKuota = async (item: SesiKuotaItem) => {
+    setError("");
+    setMessage("");
+
+    const edit = sesiKuotaEdits[item.sesi_id] ?? {
+      laki: item.kapasitas_laki,
+      wanita: item.kapasitas_wanita,
+    };
+
+    const res = await fetch("/api/admin/sesi-kuota", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sesi_id: item.sesi_id,
+        instansi: activeInstansi,
+        kapasitas_laki: edit.laki,
+        kapasitas_wanita: edit.wanita,
+      }),
+    });
+    const json = await parseJsonSafely(res);
+    if (!res.ok || !json?.success) {
+      setError(json?.message || "Gagal menyimpan kuota sesi");
+      return;
+    }
+
+    setMessage(`Kuota sesi ${item.jam} untuk instansi ${activeInstansi} berhasil diperbarui`);
+    await loadSesiKuota(activeInstansi);
   };
 
   const totalPages = Math.max(1, Math.ceil(kuotaData.length / PAGE_SIZE));
@@ -369,6 +445,116 @@ export default function ManageKuota() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="shadow-sm border-border">
+        <CardHeader>
+          <CardTitle>Manage Kuota Tiap Sesi</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              Atur kuota laki-laki dan perempuan per sesi untuk instansi {activeInstansi}. Pengaturan ini berlaku
+              untuk semua tanggal.
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setError("");
+                void loadSesiKuota(activeInstansi);
+              }}
+            >
+              Muat Ulang
+            </Button>
+          </div>
+
+          <div className="border rounded-md">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Jam Sesi</TableHead>
+                  <TableHead>Kuota L</TableHead>
+                  <TableHead>Kuota P</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Terpakai L</TableHead>
+                  <TableHead>Terpakai P</TableHead>
+                  <TableHead>Terpakai Total</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoadingSesiKuota ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center text-sm text-muted-foreground">
+                      Memuat data sesi...
+                    </TableCell>
+                  </TableRow>
+                ) : sesiKuotaData.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center text-sm text-muted-foreground">
+                      Belum ada sesi yang bisa diatur.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  sesiKuotaData.map((item) => {
+                    const edit = sesiKuotaEdits[item.sesi_id] ?? {
+                      laki: item.kapasitas_laki,
+                      wanita: item.kapasitas_wanita,
+                    };
+                    return (
+                      <TableRow key={item.sesi_id}>
+                        <TableCell className="font-medium">{item.jam}</TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={edit.laki}
+                            onChange={(e) =>
+                              setSesiKuotaEdits((prev) => ({
+                                ...prev,
+                                [item.sesi_id]: {
+                                  laki: Number(e.target.value || 0),
+                                  wanita: prev[item.sesi_id]?.wanita ?? item.kapasitas_wanita,
+                                },
+                              }))
+                            }
+                            className="w-24 h-8"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={edit.wanita}
+                            onChange={(e) =>
+                              setSesiKuotaEdits((prev) => ({
+                                ...prev,
+                                [item.sesi_id]: {
+                                  laki: prev[item.sesi_id]?.laki ?? item.kapasitas_laki,
+                                  wanita: Number(e.target.value || 0),
+                                },
+                              }))
+                            }
+                            className="w-24 h-8"
+                          />
+                        </TableCell>
+                        <TableCell>{edit.laki + edit.wanita}</TableCell>
+                        <TableCell>{item.terpakai_laki}</TableCell>
+                        <TableCell>{item.terpakai_wanita}</TableCell>
+                        <TableCell>{item.kuota_terpakai}</TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="outline" size="sm" onClick={() => saveSesiKuota(item)}>
+                            Simpan
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
