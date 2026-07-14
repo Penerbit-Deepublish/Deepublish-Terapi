@@ -536,10 +536,10 @@ export async function listPeserta(
     )`);
   }
   if (dateFrom) {
-    sqlConditions.push(Prisma.sql`t.tanggal_terapi >= ${parseDateOnly(dateFrom)}`);
+    sqlConditions.push(Prisma.sql`t.tanggal_terapi >= ${parseDateOnly(dateFrom)}::date`);
   }
   if (dateTo) {
-    sqlConditions.push(Prisma.sql`t.tanggal_terapi <= ${parseDateOnly(dateTo)}`);
+    sqlConditions.push(Prisma.sql`t.tanggal_terapi <= ${parseDateOnly(dateTo)}::date`);
   }
   const whereSql = sqlConditions.length > 0
     ? Prisma.sql`WHERE ${Prisma.join(sqlConditions, " AND ")}`

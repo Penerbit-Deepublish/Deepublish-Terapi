@@ -19,10 +19,16 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Pencil, Search, Trash2 } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Pencil, Printer, Search, Trash2 } from "lucide-react";
 import {
   INSTANSI_OPTIONS,
   getStatusKepesertaanOptions,
@@ -61,6 +67,17 @@ interface PesertaResponse {
 interface SesiItem {
   id: string;
   jam: string;
+}
+
+interface PrintPesertaItem {
+  jam: string;
+  nama: string;
+}
+
+interface PrintJadwalResponse {
+  tanggal: string;
+  laki: PrintPesertaItem[];
+  perempuan: PrintPesertaItem[];
 }
 
 interface EditFormState {
@@ -118,6 +135,87 @@ function toggleValue(list: string[], value: string, checked: boolean) {
   return Array.from(next);
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function printJadwal(preview: { gender: "L" | "P"; tanggal: string; items: { jam: string; nama: string }[] }) {
+  const genderLabel = preview.gender === "L" ? "Laki-laki" : "Perempuan";
+  const rows = preview.items.length > 0
+    ? preview.items
+        .map(
+          (item, index) => `
+            <tr>
+              <td style="text-align:center;">${index + 1}</td>
+              <td>${escapeHtml(item.jam)}</td>
+              <td>${escapeHtml(item.nama)}</td>
+              <td style="text-align:center;"><span style="display:inline-block;width:16px;height:16px;border:1px solid #475569;"></span></td>
+            </tr>`,
+        )
+        .join("")
+    : `<tr><td colspan="4" style="text-align:center;padding:24px;color:#64748b;">Tidak ada peserta pada jadwal ini</td></tr>`;
+
+  const html = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Print Jadwal ${genderLabel}</title>
+    <style>
+      body { font-family: Arial, Helvetica, sans-serif; padding: 24px; color: #0f172a; }
+      h1 { font-size: 18px; margin: 0 0 4px; text-align: center; }
+      p.subtitle { margin: 0 0 24px; text-align: center; font-size: 13px; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th, td { border: 1px solid #94a3b8; padding: 8px 12px; }
+      th { background: #f1f5f9; text-align: left; }
+    </style>
+  </head>
+  <body>
+    <h1>Daftar Jadwal Terapi</h1>
+    <p class="subtitle">${escapeHtml(preview.tanggal)} &bull; ${genderLabel}</p>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:48px;">No</th>
+          <th style="width:120px;">Jam</th>
+          <th>Nama</th>
+          <th style="width:110px;">Kehadiran</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </body>
+</html>`;
+
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument;
+  if (!doc) {
+    document.body.removeChild(iframe);
+    return;
+  }
+  doc.open();
+  doc.write(html);
+  doc.close();
+  iframe.onload = () => {
+    iframe.contentWindow?.focus();
+    iframe.contentWindow?.print();
+    setTimeout(() => {
+      if (iframe.parentNode) document.body.removeChild(iframe);
+    }, 500);
+  };
+}
+
 export default function RiwayatPeserta() {
   const [searchTerm, setSearchTerm] = useState("");
   const [data, setData] = useState<PesertaResponse | null>(null);
@@ -130,6 +228,15 @@ export default function RiwayatPeserta() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [editing, setEditing] = useState<EditFormState | null>(null);
+  const [printOpen, setPrintOpen] = useState(false);
+  const [printTanggal, setPrintTanggal] = useState("");
+  const [printError, setPrintError] = useState("");
+  const [printLoading, setPrintLoading] = useState(false);
+  const [printPreview, setPrintPreview] = useState<{
+    gender: "L" | "P";
+    tanggal: string;
+    items: PrintPesertaItem[];
+  } | null>(null);
 
   const loadData = useCallback(async (targetPage: number, q: string, from: string, to: string) => {
     setIsLoading(true);
@@ -281,6 +388,35 @@ export default function RiwayatPeserta() {
 
     setSuccess("Data peserta berhasil dihapus");
     await loadData(page, searchTerm, dateFrom, dateTo);
+  };
+
+  const cetakJadwal = async (gender: "L" | "P") => {
+    if (!printTanggal) {
+      setPrintError("Pilih tanggal terlebih dahulu");
+      return;
+    }
+    setPrintError("");
+    setPrintLoading(true);
+    try {
+      const params = new URLSearchParams({ tanggal: printTanggal });
+      const res = await fetch(`/api/admin/peserta/print?${params.toString()}`);
+      const json = await res.json();
+      if (!res.ok || !json?.success) {
+        setPrintError(json?.message || "Gagal memuat data jadwal");
+        return;
+      }
+      const data = json.data as PrintJadwalResponse;
+      setPrintPreview({
+        gender,
+        tanggal: printTanggal,
+        items: gender === "L" ? data.laki : data.perempuan,
+      });
+      setPrintOpen(false);
+    } catch {
+      setPrintError("Terjadi kesalahan jaringan saat memuat data jadwal");
+    } finally {
+      setPrintLoading(false);
+    }
   };
 
   const items = data?.items ?? [];
@@ -556,6 +692,68 @@ export default function RiwayatPeserta() {
         </DialogContent>
       </Dialog>
 
+      <Dialog
+        open={Boolean(printPreview)}
+        onOpenChange={(open) => {
+          if (!open) setPrintPreview(null);
+        }}
+      >
+        <DialogContent className="max-w-[calc(100%-2rem)] p-0 sm:max-w-2xl">
+          {printPreview && (
+            <div className="max-h-[85vh] overflow-y-auto">
+              <DialogHeader className="border-b p-5">
+                <DialogTitle>
+                  Preview Print Jadwal &mdash; {printPreview.gender === "L" ? "Laki-laki" : "Perempuan"}
+                </DialogTitle>
+                <DialogDescription>{printPreview.tanggal}</DialogDescription>
+              </DialogHeader>
+
+              <div className="p-5">
+                <table className="w-full border-collapse border border-slate-400 text-sm">
+                  <thead>
+                    <tr>
+                      <th className="border border-slate-400 px-3 py-2 w-12">No</th>
+                      <th className="border border-slate-400 px-3 py-2 w-32">Jam</th>
+                      <th className="border border-slate-400 px-3 py-2">Nama</th>
+                      <th className="border border-slate-400 px-3 py-2 w-28">Kehadiran</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {printPreview.items.length > 0 ? (
+                      printPreview.items.map((item, index) => (
+                        <tr key={`${item.jam}-${item.nama}-${index}`}>
+                          <td className="border border-slate-400 px-3 py-2 text-center">{index + 1}</td>
+                          <td className="border border-slate-400 px-3 py-2">{item.jam}</td>
+                          <td className="border border-slate-400 px-3 py-2">{item.nama}</td>
+                          <td className="border border-slate-400 px-3 py-2 text-center">
+                            <span className="inline-block h-4 w-4 border border-slate-600" />
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={4} className="border border-slate-400 px-3 py-6 text-center text-muted-foreground">
+                          Tidak ada peserta pada jadwal ini
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setPrintPreview(null)}>
+                  Tutup
+                </Button>
+                <Button onClick={() => printJadwal(printPreview)}>
+                  <Printer className="mr-2 h-4 w-4" /> Cetak
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Card className="border-border shadow-sm">
         <CardContent className="p-0">
           <div className="space-y-3 border-b p-4">
@@ -593,6 +791,45 @@ export default function RiwayatPeserta() {
                 />
               </div>
               <Button variant="outline" onClick={() => loadData(1, searchTerm, dateFrom, dateTo)}>Cari</Button>
+              <Popover
+                open={printOpen}
+                onOpenChange={(open) => {
+                  setPrintOpen(open);
+                  if (!open) setPrintError("");
+                }}
+              >
+                <PopoverTrigger
+                  render={
+                    <Button variant="outline">
+                      <Printer className="mr-2 h-4 w-4" /> Print
+                    </Button>
+                  }
+                />
+                <PopoverContent align="end">
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label>Pilih Tanggal</Label>
+                      <Input
+                        type="date"
+                        value={printTanggal}
+                        onChange={(e) => {
+                          setPrintTanggal(e.target.value);
+                          setPrintError("");
+                        }}
+                      />
+                    </div>
+                    {printError && <p className="text-xs text-red-500">{printError}</p>}
+                    <div className="flex flex-col gap-2">
+                      <Button size="sm" disabled={printLoading} onClick={() => cetakJadwal("L")}>
+                        Print Jadwal Laki-Laki
+                      </Button>
+                      <Button size="sm" disabled={printLoading} onClick={() => cetakJadwal("P")}>
+                        Print Jadwal Perempuan
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           <div className="overflow-x-auto border-t">

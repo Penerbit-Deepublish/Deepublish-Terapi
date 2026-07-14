@@ -112,7 +112,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="min-h-screen bg-[#dfe2eb]">
       <div className="flex min-h-screen w-full flex-col bg-[#f2f4fb] lg:flex-row">
       {/* Mobile Header */}
-      <div className="lg:hidden flex items-center justify-between p-4 bg-white/80 border-b border-[#dde2f2] sticky top-0 z-50 w-full">
+      <div className="lg:hidden flex items-center justify-between p-4 bg-white/80 border-b border-[#dde2f2] sticky top-0 z-50 w-full print:hidden">
         <p className="text-sm font-bold tracking-[0.06em] text-[#185cab]">{pageTitle}</p>
         <div className="flex items-center gap-2">
           <button
@@ -177,7 +177,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <button
           type="button"
           aria-label="Tutup menu"
-          className="fixed inset-0 z-40 bg-black/35 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/35 lg:hidden print:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
@@ -185,7 +185,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Sidebar */}
       <aside
         className={cn(
-        "fixed top-0 left-0 z-50 h-screen w-[82%] max-w-xs overflow-y-auto border-r border-[#e5e8f2] bg-white/90 backdrop-blur-md flex flex-col justify-between transform transition-transform duration-300 ease-out lg:relative lg:inset-auto lg:z-auto lg:h-auto lg:w-[260px] lg:max-w-none lg:translate-x-0 lg:border-r-0 lg:bg-transparent lg:p-3 lg:shrink-0 xl:w-[300px]",
+        "fixed top-0 left-0 z-50 h-screen w-[82%] max-w-xs overflow-y-auto border-r border-[#e5e8f2] bg-white/90 backdrop-blur-md flex flex-col justify-between transform transition-transform duration-300 ease-out lg:relative lg:inset-auto lg:z-auto lg:h-auto lg:w-[260px] lg:max-w-none lg:translate-x-0 lg:border-r-0 lg:bg-transparent lg:p-3 lg:shrink-0 xl:w-[300px] print:hidden",
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}
       >
@@ -263,8 +263,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
-        <div className="mb-4 hidden items-center justify-between sm:mb-6 lg:flex">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6 print:p-0">
+        <div className="mb-4 hidden items-center justify-between sm:mb-6 lg:flex print:hidden">
           <h1 className="text-2xl font-bold tracking-[0.08em] text-[#185cab]">{pageTitle}</h1>
           <div className="flex items-center gap-2 sm:gap-3">
             <button
