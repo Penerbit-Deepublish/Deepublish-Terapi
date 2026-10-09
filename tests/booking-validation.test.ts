@@ -83,6 +83,18 @@ describe("departemen visibility and validation rules", () => {
     expect(parsed.success).toBe(true);
   });
 
+  it("accepts Umum registrations without a departemen", () => {
+    const formParsed = bookingFormSchema.safeParse(
+      makeFormPayload({ instansi: "Umum", statusKepesertaan: "Umum", departemen: "" }),
+    );
+    const apiParsed = bookingApiSchema.safeParse(
+      makeApiPayload({ instansi: "Umum", status_kepesertaan: "Umum", departemen: "" }),
+    );
+
+    expect(formParsed.success).toBe(true);
+    expect(apiParsed.success).toBe(true);
+  });
+
   it("matches helper rule for required departemen", () => {
     expect(isDepartemenRequiredForInstansi("Deepublish")).toBe(true);
     expect(isDepartemenRequiredForInstansi("IMBS")).toBe(false);

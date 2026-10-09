@@ -1,4 +1,4 @@
-export const INSTANSI_OPTIONS = ["Deepublish", "IMBS"] as const;
+export const INSTANSI_OPTIONS = ["Deepublish", "IMBS", "Umum"] as const;
 
 export type Instansi = (typeof INSTANSI_OPTIONS)[number];
 
@@ -24,9 +24,12 @@ export const IMBS_STATUS_KEPESERTAAN_OPTIONS = [
   "Jamaah Masjid",
 ] as const;
 
+export const UMUM_STATUS_KEPESERTAAN_OPTIONS = ["Umum"] as const;
+
 export const STATUS_KEPESERTAAN_OPTIONS = [
   ...DEEPUBLISH_STATUS_KEPESERTAAN_OPTIONS,
   ...IMBS_STATUS_KEPESERTAAN_OPTIONS,
+  ...UMUM_STATUS_KEPESERTAAN_OPTIONS,
 ] as const;
 
 export type StatusKepesertaan = (typeof STATUS_KEPESERTAAN_OPTIONS)[number];
@@ -44,6 +47,7 @@ export function isStatusKepesertaan(value: unknown): value is StatusKepesertaan 
 export function getStatusKepesertaanOptions(instansi?: Instansi | "") {
   if (instansi === "Deepublish") return DEEPUBLISH_STATUS_KEPESERTAAN_OPTIONS;
   if (instansi === "IMBS") return IMBS_STATUS_KEPESERTAAN_OPTIONS;
+  if (instansi === "Umum") return UMUM_STATUS_KEPESERTAAN_OPTIONS;
   return [];
 }
 
