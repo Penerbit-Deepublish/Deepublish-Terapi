@@ -8,6 +8,7 @@ import {
 } from "@/lib/kepesertaan";
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const kuotaInstansiScopeSchema = z.union([z.enum(INSTANSI_OPTIONS), z.literal("ALL")]);
 
 export const adminLoginSchema = z.object({
   email: z.string().email(),
@@ -19,7 +20,7 @@ export const setKuotaSchema = z
     tanggal: z.string().regex(dateRegex).optional(),
     tanggal_mulai: z.string().regex(dateRegex).optional(),
     tanggal_selesai: z.string().regex(dateRegex).optional(),
-    instansi: z.enum(INSTANSI_OPTIONS).optional(),
+    instansi: kuotaInstansiScopeSchema.optional(),
     kuota_max: z.number().int().min(1).max(500),
   })
   .superRefine((value, ctx) => {

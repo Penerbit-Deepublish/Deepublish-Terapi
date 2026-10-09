@@ -72,6 +72,7 @@ export default function ManageKuota() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [instansi, setInstansi] = useState<Instansi>("Deepublish");
+  const [instansiMassal, setInstansiMassal] = useState<Instansi | "ALL">("Deepublish");
   const [sesiKuotaData, setSesiKuotaData] = useState<SesiKuotaItem[]>([]);
   const [sesiKuotaEdits, setSesiKuotaEdits] = useState<Record<string, { laki: number; wanita: number }>>({});
   const [isLoadingSesiKuota, setIsLoadingSesiKuota] = useState(true);
@@ -94,6 +95,7 @@ export default function ManageKuota() {
         const forcedInstansi = getScopedInstansiByRole(role);
         if (forcedInstansi) {
           setInstansi(forcedInstansi);
+          setInstansiMassal(forcedInstansi);
         }
       } finally {
         setIsLoadingRole(false);
@@ -185,7 +187,7 @@ export default function ManageKuota() {
       body: JSON.stringify({
         tanggal_mulai: tanggalMulai,
         tanggal_selesai: tanggalSelesai,
-        instansi: activeInstansi,
+        instansi: scopedInstansi ?? instansiMassal,
         kuota_max: kuotaMassalNumber,
       }),
     });
@@ -196,7 +198,11 @@ export default function ManageKuota() {
       return;
     }
 
-    setMessage("Kuota massal berhasil disimpan");
+    setMessage(
+      instansiMassal === "ALL" && !scopedInstansi
+        ? "Kuota massal untuk semua instansi berhasil disimpan"
+        : "Kuota massal berhasil disimpan",
+    );
     await loadKuota(dateFrom, dateTo, activeInstansi);
   };
 
@@ -345,11 +351,12 @@ export default function ManageKuota() {
             ) : (
               <div className="space-y-2">
                 <Label>Instansi</Label>
-                <Select value={instansi} onValueChange={(value) => setInstansi(value as Instansi)}>
+                <Select value={instansiMassal} onValueChange={(value) => setInstansiMassal(value as Instansi | "ALL")}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="ALL">Umum (Semua Instansi)</SelectItem>
                     {INSTANSI_OPTIONS.map((item) => (
                       <SelectItem key={item} value={item}>
                         {item}

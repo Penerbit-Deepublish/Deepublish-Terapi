@@ -6,7 +6,7 @@ import { getQuotaByDate } from "@/lib/services/booking";
 import type { z } from "zod";
 import { updatePesertaSchema } from "@/lib/validators/admin";
 import { getAdminInstansiScope, type AdminRole } from "@/lib/admin-roles";
-import type { Instansi } from "@/lib/kepesertaan";
+import { INSTANSI_OPTIONS, type Instansi } from "@/lib/kepesertaan";
 import { getMaxBookingPerGenderPerSession, getMaxBookingPerSession } from "@/lib/quota";
 import { getDefaultSesiQuota, getSesiQuotaBaseMap, getSesiQuotaOverridesMap, resolveSesiQuota } from "@/lib/services/sesi-quota";
 
@@ -65,6 +65,15 @@ function resolveKuotaInstansiScope(role?: AdminRole, requestedInstansi?: Instans
     throw new Error("FORBIDDEN_INSTANSI");
   }
   return scopedInstansi ?? requestedInstansi ?? "Deepublish";
+}
+
+function resolveKuotaInstansiScopes(role?: AdminRole, requestedInstansi?: Instansi | "ALL"): Instansi[] {
+  const scopedInstansi = getAdminInstansiScope(role);
+  if (requestedInstansi === "ALL") {
+    if (scopedInstansi) throw new Error("FORBIDDEN_INSTANSI");
+    return [...INSTANSI_OPTIONS];
+  }
+  return [resolveKuotaInstansiScope(role, requestedInstansi)];
 }
 
 export async function getDashboardData(input?: { from?: string; to?: string; role?: AdminRole }) {
@@ -163,10 +172,10 @@ export async function setKuotaRange(input: {
   tanggal?: string;
   tanggal_mulai?: string;
   tanggal_selesai?: string;
-  instansi?: Instansi;
+  instansi?: Instansi | "ALL";
   kuota_max: number;
 }, role?: AdminRole) {
-  const instansiScope = resolveKuotaInstansiScope(role, input.instansi);
+  const instansiScopes = resolveKuotaInstansiScopes(role, input.instansi);
   const ranges: Date[] = [];
   if (input.tanggal) {
     ranges.push(parseDateOnly(input.tanggal));
@@ -187,24 +196,27 @@ export async function setKuotaRange(input: {
   const rangeStart = ranges[0];
   const rangeEnd = ranges[ranges.length - 1];
   const bookingStats = await prisma.terapi.groupBy({
-    by: ["tanggalTerapi"],
-    where: { tanggalTerapi: { gte: rangeStart, lte: rangeEnd }, instansi: instansiScope },
+    by: ["tanggalTerapi", "instansi"],
+    where: { tanggalTerapi: { gte: rangeStart, lte: rangeEnd }, instansi: { in: instansiScopes } },
     _count: { _all: true },
   });
   const bookedMap = new Map(
-    bookingStats.map((row) => [formatDateOnly(row.tanggalTerapi), row._count._all] as const),
+    bookingStats.map((row) => [`${row.instansi}:${formatDateOnly(row.tanggalTerapi)}`, row._count._all] as const),
   );
 
   const existingRows = await prisma.kuota.findMany({
-    where: { tanggal: { gte: rangeStart, lte: rangeEnd }, instansi: instansiScope },
-    select: { id: true, tanggal: true },
+    where: { tanggal: { gte: rangeStart, lte: rangeEnd }, instansi: { in: instansiScopes } },
+    select: { id: true, tanggal: true, instansi: true },
   });
-  const existingMap = new Map(existingRows.map((row) => [formatDateOnly(row.tanggal), row.id] as const));
+  const existingMap = new Map(
+    existingRows.map((row) => [`${row.instansi}:${formatDateOnly(row.tanggal)}`, row.id] as const),
+  );
 
   const upserts = await prisma.$transaction(
-    ranges.map((tanggal) => {
-      const existingId = existingMap.get(formatDateOnly(tanggal));
-      const kuotaTerpakai = bookedMap.get(formatDateOnly(tanggal)) ?? 0;
+    instansiScopes.flatMap((instansi) => ranges.map((tanggal) => {
+      const key = `${instansi}:${formatDateOnly(tanggal)}`;
+      const existingId = existingMap.get(key);
+      const kuotaTerpakai = bookedMap.get(key) ?? 0;
       if (existingId) {
         return prisma.kuota.update({
           where: { id: existingId },
@@ -217,16 +229,17 @@ export async function setKuotaRange(input: {
       return prisma.kuota.create({
         data: {
           tanggal,
-          instansi: instansiScope,
+          instansi,
           kuotaMax: input.kuota_max,
           kuotaTerpakai,
         },
       });
-    }),
+    })),
   );
 
   return upserts.map((item) => ({
     id: item.id,
+    instansi: item.instansi,
     tanggal: formatDateOnly(item.tanggal),
     kuota_max: item.kuotaMax,
     kuota_terpakai: item.kuotaTerpakai,

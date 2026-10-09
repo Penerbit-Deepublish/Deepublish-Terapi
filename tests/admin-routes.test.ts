@@ -74,6 +74,26 @@ describe("admin routes", () => {
     expect(setKuotaMock).not.toHaveBeenCalled();
   });
 
+  it("accepts the all-instansi scope for a mass quota update", async () => {
+    authMock.mockReturnValueOnce({ sub: "1", email: "a", role: "super" });
+    setKuotaMock.mockResolvedValueOnce([]);
+
+    const req = new NextRequest("http://localhost/api/admin/kuota", {
+      method: "POST",
+      body: JSON.stringify({
+        tanggal_mulai: "2026-10-10",
+        tanggal_selesai: "2026-10-11",
+        instansi: "ALL",
+        kuota_max: 10,
+      }),
+      headers: { "content-type": "application/json" },
+    });
+
+    const res = await kuotaPost(req);
+    expect(res.status).toBe(200);
+    expect(setKuotaMock).toHaveBeenCalledWith(expect.objectContaining({ instansi: "ALL" }), "super");
+  });
+
   it("deletes peserta by id", async () => {
     authMock.mockReturnValueOnce({ sub: "1", email: "a", role: "super" });
     deletePesertaMock.mockResolvedValueOnce({ id: "abc" });
