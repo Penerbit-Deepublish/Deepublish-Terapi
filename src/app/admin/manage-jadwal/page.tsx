@@ -54,6 +54,7 @@ export default function ManageJadwalPage() {
   const [dateTo, setDateTo] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [instansi, setInstansi] = useState<Instansi>("Deepublish");
+  const [instansiJadwal, setInstansiJadwal] = useState<Instansi | "ALL">("Deepublish");
   const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
   const [isLoadingRole, setIsLoadingRole] = useState(true);
   const scopedInstansi = getScopedInstansiByRole(adminRole ?? undefined);
@@ -72,6 +73,7 @@ export default function ManageJadwalPage() {
         const forcedInstansi = getScopedInstansiByRole(role);
         if (forcedInstansi) {
           setInstansi(forcedInstansi);
+          setInstansiJadwal(forcedInstansi);
         }
       } finally {
         setIsLoadingRole(false);
@@ -127,7 +129,11 @@ export default function ManageJadwalPage() {
     const res = await fetch("/api/admin/kuota", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tanggal, instansi: activeInstansi, kuota_max: kuotaMaxNumber }),
+      body: JSON.stringify({
+        tanggal,
+        instansi: scopedInstansi ?? instansiJadwal,
+        kuota_max: kuotaMaxNumber,
+      }),
     });
     const json = await parseJsonSafely(res);
 
@@ -136,7 +142,11 @@ export default function ManageJadwalPage() {
       return;
     }
 
-    setMessage(`Jadwal tanggal ${tanggal} berhasil disimpan`);
+    setMessage(
+      instansiJadwal === "ALL" && !scopedInstansi
+        ? `Jadwal tanggal ${tanggal} untuk semua instansi berhasil disimpan`
+        : `Jadwal tanggal ${tanggal} berhasil disimpan`,
+    );
     await loadJadwal(dateFrom, dateTo, activeInstansi);
   };
 
@@ -195,11 +205,12 @@ export default function ManageJadwalPage() {
           ) : (
             <div className="space-y-2">
               <Label>Instansi</Label>
-              <Select value={instansi} onValueChange={(value) => setInstansi(value as Instansi)}>
+              <Select value={instansiJadwal} onValueChange={(value) => setInstansiJadwal(value as Instansi | "ALL")}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="ALL">Umum (Semua Instansi)</SelectItem>
                   {INSTANSI_OPTIONS.map((item) => (
                     <SelectItem key={item} value={item}>
                       {item}
