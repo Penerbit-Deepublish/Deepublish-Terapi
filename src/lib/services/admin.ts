@@ -200,7 +200,7 @@ export async function setKuotaRange(input: {
     where: { tanggalTerapi: { gte: rangeStart, lte: rangeEnd }, instansi: { in: instansiScopes } },
     _count: { _all: true },
   });
-  const bookedMap = new Map(
+  const bookedMap = new Map<string, number>(
     bookingStats.map((row) => [`${row.instansi}:${formatDateOnly(row.tanggalTerapi)}`, row._count._all] as const),
   );
 
@@ -208,7 +208,7 @@ export async function setKuotaRange(input: {
     where: { tanggal: { gte: rangeStart, lte: rangeEnd }, instansi: { in: instansiScopes } },
     select: { id: true, tanggal: true, instansi: true },
   });
-  const existingMap = new Map(
+  const existingMap = new Map<string, string>(
     existingRows.map((row) => [`${row.instansi}:${formatDateOnly(row.tanggal)}`, row.id] as const),
   );
 
